@@ -1,7 +1,9 @@
 class Permutation():
-    def __init__(self, nums):
+    def __init__(self, nums = None, cycle_form = None, size = None):
+        self._cycle_form = cycle_form
+        if nums == None:
+            
         self.func=nums
-        self._cycle_form=None
     
     def _image(self, num):
         if num < 1 or num > len(self):
@@ -53,7 +55,7 @@ class Permutation():
                 todo[first] = -1
                 todo[nex] = -1
                 cycle = [first, nex]
-                nex = self._image(nex)               
+                nex = self._image(nex)
                 while nex != first:
                     todo[nex] = -1
                     cycle.append(nex)
