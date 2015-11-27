@@ -47,8 +47,8 @@ class PermGroup():
     def _coset_rep_inverses(self, schreier_graph):
         coset_reps = [None for _ in schreier_graph]
         coset_reps[schreier_graph.index(self.identity)] = self.identity
-        for index in range(len(schreier_graph)):
-            indices_to_coset = [index]
+        for index in [i for i, v in enumerate(schreier_graph) if v is not None]:
+            indices_to_coset = [index] #the path back to the identity.
             while coset_reps[indices_to_coset[-1]] is None:
                 cur_index = indices_to_coset[-1]
                 cur_g = schreier_graph[cur_index]
@@ -78,7 +78,7 @@ class PermGroup():
             edges = self.generators
         schreier_gens = []
         unique_check = {self.identity}
-        for r in coset_reps:
+        for r in [g for g in coset_reps if g is not None]:
             for s in edges:
                 rs = r * s
                 rs_coset_index = (num**rs) - 1
@@ -121,7 +121,8 @@ class PermGroup():
                 schreier_graph = self._schreier_graph(num, gens)
                 schreier_graphs[level] = schreier_graph
                 coset_reps = self._coset_reps(schreier_graph)
-                schreier_gens = self._schreier_generators(num, coset_reps, gens)
+                # need in reverse order as they will be popped off.
+                schreier_gens = list(reversed(self._schreier_generators(num, coset_reps, gens)))
                 chain_schreier_generators[level] = schreier_gens
                 
                 chain_generators.append([]) #make next level.
@@ -134,7 +135,7 @@ class PermGroup():
                 gens = chain_generators[level]
                 self._schreier_graph_expand(schreier_graph, gens, len(gens) - 1)
                 coset_reps = self._coset_reps(schreier_graph)
-                schreier_gens = self._schreier_generators_expand(num, coset_reps, gens[-1:])
+                schreier_gens = list(reversed(self._schreier_generators(num, coset_reps, gens[-1:])))
                 chain_schreier_generators[level] = schreier_gens
             
             membership_pass = True #have we passed all membership tests?            
@@ -147,21 +148,27 @@ class PermGroup():
                 if siftee != self.identity:
                     membership_pass = False
                     chain_generators[level+1].append(siftee)
-                    if len(base) == level + 1:#also need to add to base.
+                    if len(base) == level + 1: #also need to add to base.
                         first_non_fixed = next(num for num in range(1, len(self.identity) + 1) if num**siftee != num)
                         base.append(first_non_fixed)                        
             
-            if membership_pass: #exhausted this level so check for next previous schreier gen.
+            if membership_pass: #exhausted this level so check for next schreier gen of prior level.
                 level = level - 1
                 
             else: #needed to add to the generators so need to check down recursively.
                 level = level + 1
         
-        return base, list(set.intersection(chain_generators))
+        strong_gens = []
+        unique_check = set()
+        for gens in chain_generators:
+            for gen in gens:
+                if gen not in unique_check:
+                    strong_gens.append(gen)
+                    unique_check.add(gen)
+        return base, strong_gens
             
-                
 
-def main():
+def test1():
     s1 = Permutation.read_cycle_form([[2,3]], 4)
     s2 = Permutation.read_cycle_form([[1,2,4]], 4)
     G = PermGroup([s1, s2])
@@ -173,9 +180,25 @@ def main():
     print(s_gen)
     cand = s_gen[0]
     siftee = G._membership_siftee(cand, [], [])
-    print(siftee)
+    print(siftee)    
+
+def test2():
+    a = Permutation([1,2,3,4])
+    b = Permutation([3,2,1,4])
+    G = PermGroup([a])    
+    print(G._coset_rep_inverses([a,None,b,None]))
+    
+
+def test3():
+    s1 = Permutation.read_cycle_form([[2,3,5,7]], 8)
+    s2 = Permutation.read_cycle_form([[1,2,4,8]], 8)
     G = PermGroup([s1, s2])
-    print(G._schreier_sims())
+    print(G._schreier_sims()) 
+
+def main():
+    #test1()
+    #test2()
+    test3()
     
 if __name__ == "__main__":
     main()

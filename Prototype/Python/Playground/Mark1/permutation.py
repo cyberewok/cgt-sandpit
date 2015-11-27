@@ -19,10 +19,7 @@ class Permutation():
         return ret
     
     def _image(self, num):
-        if num < 1 or num > len(self):
-            raise ValueError("{} has no image as out of bounds.".format(num))
-        else:
-            return self._func[num-1]
+        return self._func[num-1]
     
     def _images(self, nums):
         return [self._image(num) for num in nums]
@@ -40,11 +37,15 @@ class Permutation():
             return Permutation(inverse)
         else:
             raise TypeError("Cannot find inverse for {} {}.".format(type(self), num))
-        
+    
+    __xor__ = __pow__    
+    
     def __rpow__(self, num):
         if not isinstance(num, int):
             raise TypeError("Cannot find image for types {} and {}.".format(type(num), type(self)))
         return self._image(num)    
+    
+    __rxor__ = __rpow__     
     
     def __str__(self):
         return str(self.cycle_notation())#[1:-1]
