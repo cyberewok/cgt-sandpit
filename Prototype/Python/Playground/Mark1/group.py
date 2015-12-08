@@ -165,7 +165,11 @@ class PermGroup():
                 if gen not in unique_check:
                     strong_gens.append(gen)
                     unique_check.add(gen)
-        return base, strong_gens
+        return base, strong_gens, chain_generators, schreier_graphs
+    
+    def _rand_element(self):
+        pass
+        
             
 
 def test1():
@@ -190,10 +194,13 @@ def test2():
     
 
 def test3():
-    s1 = Permutation.read_cycle_form([[2,3,5,7]], 8)
-    s2 = Permutation.read_cycle_form([[1,2,4,8]], 8)
+    s1 = Permutation.read_cycle_form([[2,3,5,7],[9, 10]], 10)
+    s2 = Permutation.read_cycle_form([[1,2,4,8],[9, 10]], 10)
     G = PermGroup([s1, s2])
-    print(G._schreier_sims()) 
+    base, strong_gens, chain_generators, schreier_graphs = G._schreier_sims()
+    print(base)
+    for b, gen in zip(['_']+base, chain_generators):
+        print(b, gen) 
 
 def main():
     #test1()
