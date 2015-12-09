@@ -15,6 +15,24 @@ class PermGroup():
             self.base = []
         else:
             self.base = base
+            
+    def _list_elements(self):
+        elements_found = set(self.generators)
+        frontier = list(self.generators)
+        while len(frontier) != 0:
+            cur = frontier.pop()
+            for g in self.generators:
+                cand = cur * g
+                if cand not in elements_found:
+                    frontier.append(cand)
+                    elements_found.add(cand)
+        return list(elements_found)
+    
+    def _print_elements(self):
+        ele = self._list_elements()
+        ele.sort()
+        for g in ele:
+            print(str(g)[1:-1])
     
     def _schreier_graph(self, num, edges = None):
         if edges is None:
@@ -202,10 +220,19 @@ def test3():
     for b, gen in zip(['_']+base, chain_generators):
         print(b, gen) 
 
+def test4():
+    s1 = Permutation.read_cycle_form([[1,2,3,4,5]], 5)
+    s2 = Permutation.read_cycle_form([[1,2]], 5)
+    G = PermGroup([s1, s2])
+    print(len(G._list_elements()))
+    G._print_elements()
+
 def main():
     #test1()
     #test2()
-    test3()
+    #test3()
+    test4()
+    
     
 if __name__ == "__main__":
     main()
