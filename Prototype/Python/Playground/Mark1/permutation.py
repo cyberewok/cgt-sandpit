@@ -36,7 +36,7 @@ class Permutation():
     
     def __mul__(self, perm):
         if not isinstance(perm, self.__class__):
-            raise TypeError("Cannot multiply types {} and {}.".format(type(perm), type(self)))     
+            return NotImplemented   
         return Permutation(perm._images(self._func))
     
     def __pow__(self, num):
