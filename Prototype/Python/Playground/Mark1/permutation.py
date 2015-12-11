@@ -15,7 +15,6 @@ class Permutation():
                 nums[prev - 1] = num
                 prev = num
         ret = Permutation(nums)
-        ret._cycle_form = cycle_form
         return ret
     
     def _image(self, num):
@@ -24,9 +23,20 @@ class Permutation():
     def _images(self, nums):
         return [self._image(num) for num in nums]
     
+    def __lt__(self, other):
+        num_cycles = len(self.cycle_notation())
+        num_cycles_other = len(other.cycle_notation())
+        if num_cycles != num_cycles_other:
+            return num_cycles < num_cycles_other
+        cycle_sizes = [len(cycle) for cycle in self.cycle_notation()]
+        cycle_sizes_other = [len(cycle) for cycle in other.cycle_notation()]
+        if cycle_sizes != cycle_sizes_other:
+            return cycle_sizes > cycle_sizes_other
+        return self.cycle_notation() < other.cycle_notation()
+    
     def __mul__(self, perm):
         if not isinstance(perm, self.__class__):
-            raise TypeError("Cannot multiply types {} and {}.".format(type(perm), type(self)))     
+            return NotImplemented   
         return Permutation(perm._images(self._func))
     
     def __pow__(self, num):
@@ -87,6 +97,9 @@ class Permutation():
                     cycle.append(nex)
                     nex = self._image(nex)
                 ret.append(cycle)
+        ret.sort(key = lambda x: (len(x), x))
+        #if len(ret) == 0:
+            #ret.append([])
         self._cycle_form = ret
         return ret
 
