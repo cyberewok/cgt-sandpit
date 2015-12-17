@@ -1,4 +1,5 @@
 from permutation import Permutation
+from schreier_sims import schreier_sims_algorithm
 
 class PermCoset():
     def __init__(self, elements = None, generators = None, right_rep = None, left_rep = None):
@@ -85,10 +86,21 @@ class PermGroup(PermCoset):
             self.base = []
         else:
             self.base = base
-        self.chain_generators = None
-        self.schreier_graphs = None
         super().__init__(None, generators, self.identity, self.identity)
-        self._schreier_sims()
+        b, strong_gens, chain_gens, sgs = schreier_sims_algorithm(generators, self.identity)
+        self.base = b
+        self.strong_generators = strong_gens
+        self.chain_generators = chain_gens
+        self.schreier_graphs = sgs
+        self.size = None
+        
+    def __len__(self):
+        if self.size is None:
+            total = 1
+            for num_cosets in [len([g for g in sg if g is not None]) for sg in schreier_graphs]:
+                total *= num_cosets
+            self.size = total
+        return self.size
         
     def __contains__(self, key):
         return self.identity == self._membership_siftee(key, self.schreier_graphs, self.base)
@@ -315,21 +327,7 @@ class PermGroup(PermCoset):
         pass
         
 
-def test_coset_construction_from_schreier_tree(group):
-    G = group
-    base, strong_gens, chain_generators, schreier_graphs = G._schreier_sims()
-    no_errors = True
-    for s_g in schreier_graphs[0:-1]:
-        coset_inverses_1 = G._coset_rep_inverses(s_g)
-        coset_inverses_2 = [G._coset_rep_inverse(i + 1, s_g) for i in range(len(G.identity))]
-        if coset_inverses_1 != coset_inverses_2:
-            no_errors = False
-            print(coset_inverses_1)
-            print(coset_inverses_2)
-    if no_errors:
-        print("pass")
-    else:
-        print("fail")
+
         
 def test_contains(group, subgroup):
     G = group
