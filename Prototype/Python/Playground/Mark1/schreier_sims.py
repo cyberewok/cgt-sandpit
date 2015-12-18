@@ -7,7 +7,7 @@ def _schreier_graph(num, edges, identity):
     #Num is the fixed element of the base set that G acts on.
     #Edges are the generators for previous subgroup.
     schreier_graph = [None for _ in range(len(identity))]
-    schreier_graph[num - 1] = self.identity
+    schreier_graph[num - 1] = identity
     return _schreier_graph_expand(schreier_graph, edges, 0)
 
 def _schreier_graph_expand(schreier_graph, edges, new_edge_index):
@@ -96,10 +96,10 @@ def _coset_rep_inverse(image, schreier_graph, identity):
         return None
     return g
 
-def _schreier_generators(num, coset_reps, edges):
+def _schreier_generators(num, coset_reps, edges, identity):
     """Returns the schreier generators for the subgroup that stabilises num."""
     schreier_gens = []
-    unique_check = {self.identity}
+    unique_check = {identity}
     for r in [g for g in coset_reps if g is not None]:
         for s in edges:
             rs = r * s
@@ -111,15 +111,15 @@ def _schreier_generators(num, coset_reps, edges):
                 unique_check.add(gen)
     return schreier_gens
 
-def _membership_siftee(candidate, schreier_graphs, base):
+def membership_siftee(candidate, schreier_graphs, base, identity):
     """Returns the sifftee when chaining using the schreier graphs and the given base."""
     for num, schreier_graph in zip(base, schreier_graphs):
         image = num**candidate
         #We used to construct all coset inverses this is bad we only need one.
         #image_index = image - 1
-        #coset_inverses = self._coset_rep_inverses(schreier_graph)
+        #coset_inverses = _coset_rep_inverses(schreier_graph)
         #coset_rep = coset_inverses[image_index]
-        coset_rep = _coset_rep_inverse(image, schreier_graph)
+        coset_rep = _coset_rep_inverse(image, schreier_graph, identity)
         if coset_rep is None:
             return candidate
         else:
@@ -143,11 +143,11 @@ def schreier_sims_algorithm(generators, identity):
             schreier_graph = schreier_graphs[level]
             gens = chain_generators[level]
             #unnecciary? if schreier_graph is None: #populate for first time
-            schreier_graph = _schreier_graph(num, gens)
+            schreier_graph = _schreier_graph(num, gens, identity)
             schreier_graphs[level] = schreier_graph
-            coset_reps = _coset_reps(schreier_graph)
+            coset_reps = _coset_reps(schreier_graph, identity)
             # need in reverse order as they will be popped off.
-            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens)))
+            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens, identity)))
             chain_schreier_generators[level] = schreier_gens
             
             chain_generators.append([]) #make next level.
@@ -159,8 +159,8 @@ def schreier_sims_algorithm(generators, identity):
             schreier_graph = schreier_graphs[level]
             gens = chain_generators[level]
             _schreier_graph_expand(schreier_graph, gens, len(gens) - 1)
-            coset_reps = _coset_reps(schreier_graph)
-            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens[-1:])))
+            coset_reps = _coset_reps(schreier_graph, identity)
+            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens[-1:], identity)))
             chain_schreier_generators[level] = schreier_gens
         
         membership_pass = True #have we passed all membership tests?            
@@ -169,7 +169,7 @@ def schreier_sims_algorithm(generators, identity):
             gen = schreier_gens.pop()
             schreier_graphs_membership = schreier_graphs[level+1:]
             base_membership = base[level+1:] 
-            siftee = _membership_siftee(gen, schreier_graphs_membership, base_membership)
+            siftee = membership_siftee(gen, schreier_graphs_membership, base_membership, identity)
             if siftee != identity:
                 membership_pass = False
                 chain_generators[level+1].append(siftee)
@@ -191,26 +191,4 @@ def schreier_sims_algorithm(generators, identity):
                 strong_gens.append(gen)
                 unique_check.add(gen)
     
-    return base, strong_gens, chain_generators, schreier_graphs
-
-
-def _test_coset_construction_from_schreier_tree(gens, identity):
-    base, strong_gens, chain_generators, schreier_graphs = schreier_sims_algorithm(gens, identity)
-    no_errors = True
-    for s_g in schreier_graphs[0:-1]:
-        coset_inverses_1 = _coset_rep_inverses(s_g)
-        coset_inverses_2 = [_coset_rep_inverse(i + 1, s_g) for i in range(len(G.identity))]
-        if coset_inverses_1 != coset_inverses_2:
-            no_errors = False
-            print(coset_inverses_1)
-            print(coset_inverses_2)
-    if no_errors:
-        print("pass")
-    else:
-        print("fail")
-
-def _main():
-    pass
-    
-if __name__ == "__main__":
-    _main()
+    return base, strong_gens, chain_generators, schreier_graphs[:-1]

@@ -1,3 +1,6 @@
+"""This module contains all support for permutations. Including operations,
+equality checks and hashing."""
+
 class Permutation():
     def __init__(self, nums):
         self._func = tuple(nums)
@@ -48,14 +51,14 @@ class Permutation():
         else:
             raise TypeError("Cannot find inverse for {} {}.".format(type(self), num))
     
-    __xor__ = __pow__    
+    #__xor__ = __pow__    
     
     def __rpow__(self, num):
         if not isinstance(num, int):
             raise TypeError("Cannot find image for types {} and {}.".format(type(num), type(self)))
         return self._image(num)    
     
-    __rxor__ = __rpow__     
+    #__rxor__ = __rpow__     
     
     def __str__(self):
         return str(self.cycle_notation())#[1:-1]
@@ -102,23 +105,3 @@ class Permutation():
             #ret.append([])
         self._cycle_form = ret
         return ret
-
-def main():
-    print(a)
-    print(b)
-    print(a*b)
-    print(1**b)
-    print(a**-1)
-    print(a**-1 * a)
-    print(a * a**-1)
-    print(1 ** a ** -1)
-    print((a * a**-1)._func)
-    print(c)
-    print(c._func)
-    
-
-if __name__ == "__main__":
-    a=Permutation([2,3,1,4])
-    b=Permutation([2,1,4,3])
-    c=Permutation([])
-    main()

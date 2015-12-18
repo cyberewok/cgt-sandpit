@@ -1,18 +1,21 @@
 import random
+"""Getting some benchmarks on shuffling algorithms when I was too lazy
+to do it analytically. I have since done it analytically."""
 
 def shuffle1(a):
+    """A good shuffling procedure."""
     for i in range(len(a) -1):
         j = random.randint(i, len(a) - 2)
         a[i], a[j] = a[j], a[i]
-        
-
 
 def shuffle2(a):
+    """A terrible shuffling procedure."""
     for i in range(len(a)):
         j = random.randint(0, len(a) - 1)
         a[i], a[j] = a[j], a[i]
         
 def shuffle3(a):
+    """Another good procedure."""
     for i in reversed(range(1, len(a))):
         j = random.randint(0, i)
         a[i], a[j] = a[j], a[i]
