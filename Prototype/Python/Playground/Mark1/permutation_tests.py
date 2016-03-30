@@ -1,0 +1,59 @@
+import unittest
+from permutation import Permutation
+
+class TestPermutation(unittest.TestCase):
+    
+    def test_equlity(self):
+        a=Permutation([2,3,1,4])
+        b=Permutation([2,1,4,3])
+        self.assertEqual(b, Permutation([2,1,4,3]))
+        self.assertNotEqual(a,b)    
+    
+    def test_cycle_form_reading(self):
+        a=Permutation([2,3,1,4])
+        self.assertEqual(a, Permutation.read_cycle_form([[1,2,3]],4))
+        self.assertEqual(a, Permutation.read_cycle_form([[2,3,1]],4))
+        self.assertEqual(a, Permutation.read_cycle_form([[3,1,2]],4))
+        
+    def test_composition(self):
+        a=Permutation([2,3,1,4])
+        b=Permutation([2,1,4,3])
+        self.assertEqual(a*b, Permutation.read_cycle_form([[2,4,3]],4))
+        self.assertEqual(b*a, Permutation.read_cycle_form([[1,3,4]],4))
+    
+    def test_action_on_numbers(self):
+        a=Permutation([2,3,1,4])
+        b=Permutation([2,1,4,3])
+        self.assertEqual(1**a,2)
+        self.assertEqual(1**b,2)
+        self.assertEqual(3**a,1)
+        self.assertEqual(3**b,4)
+        self.assertEqual(4**a,4)
+        self.assertEqual(4**b,3)
+    
+    def test_inverse(self):
+        a=Permutation([2,3,1,4])
+        b=Permutation([2,1,4,3])
+        self.assertEqual(a**-1, Permutation([3,1,2,4]))
+    
+    def test_identity(self):
+        a=Permutation([2,3,1,4])
+        c=Permutation([])
+        self.assertEqual(a**-1 * a, Permutation.read_cycle_form([],4))
+        self.assertEqual(a * a**-1, Permutation.read_cycle_form([],4))
+        self.assertEqual((a * a**-1)._func, (1,2,3,4))
+        self.assertEqual(c._func, ())
+    
+    def test_order(self):
+        a=Permutation([2,3,1,4])
+        self.assertEqual(1 ** a ** -1, 3)
+        
+    
+def all_tests_suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(TestPermutation))
+    return suite
+
+if __name__ == '__main__':
+    test_runner = unittest.TextTestRunner(verbosity=2)
+    test_runner.run(all_tests_suite())
