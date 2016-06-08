@@ -7,7 +7,9 @@ class Permutation():
         self._cycle_form = None
     
     @staticmethod
-    def read_cycle_form(cycle_form, size):
+    def read_cycle_form(cycle_form, size = None):
+        if size is None:
+            size = max([max(cycle) for cycle in cycle_form])
         nums = list(range(1, size + 1))    
         for cycle in cycle_form:
             first = cycle[0]
@@ -20,6 +22,13 @@ class Permutation():
         ret = Permutation(nums)
         return ret
     
+    @staticmethod
+    def read_partitions(part_a, part_b):
+        nums = [0] * len(part_a)
+        for index in range(len(part_a)):
+            nums[part_a[index][0] - 1] = part_b[index][0]
+        return Permutation(nums)
+            
     def _image(self, num):
         return self._func[num-1]
     
@@ -54,9 +63,10 @@ class Permutation():
     #__xor__ = __pow__    
     
     def __rpow__(self, num):
-        if not isinstance(num, int):
-            raise TypeError("Cannot find image for types {} and {}.".format(type(num), type(self)))
-        return self._image(num)    
+        if isinstance(num, int):
+            return self._image(num)
+        raise TypeError("Cannot find image for types {} and {}.".format(type(num), type(self)))
+    
     
     #__rxor__ = __rpow__     
     
@@ -80,12 +90,15 @@ class Permutation():
     
     def __hash__(self):
         return hash(self._func)
+    
+    def trivial(self):
+        return len(self.cycle_notation()) == 0
         
     def cycle_notation(self):
         if not self._cycle_form is None:
             return self._cycle_form
         ret = []
-        todo = [1 for _ in range(len(self) + 1)]
+        todo = [1] * (len(self) + 1)
         for first in range(1, len(todo)):
             if todo[first] == 0:
                 continue

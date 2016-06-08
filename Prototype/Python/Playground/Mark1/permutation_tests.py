@@ -1,5 +1,6 @@
 import unittest
 from permutation import Permutation
+from partition import Partition
 
 class TestPermutation(unittest.TestCase):
     
@@ -14,6 +15,21 @@ class TestPermutation(unittest.TestCase):
         self.assertEqual(a, Permutation.read_cycle_form([[1,2,3]],4))
         self.assertEqual(a, Permutation.read_cycle_form([[2,3,1]],4))
         self.assertEqual(a, Permutation.read_cycle_form([[3,1,2]],4))
+
+    def test_read_partitions(self):
+        a=Partition([[1],[2],[3],[4],[5]])
+        b=Partition([[2],[3],[4],[5],[1]])
+        c=Partition([[2],[1],[4],[3],[5]])
+        perm1 = Permutation([2,3,4,5,1])
+        perm1alt = Permutation.read_partitions(a,b)
+        perm2 = Permutation([2,1,4,3,5])
+        perm2alt = Permutation.read_partitions(a,c)
+        perm3 = Permutation([5,2,1,4,3])
+        perm3alt = Permutation.read_partitions(b,c)
+        self.assertEqual(perm1, perm1alt)
+        self.assertEqual(perm2, perm2alt)           
+        self.assertEqual(perm3, perm3alt)
+                        
         
     def test_composition(self):
         a=Permutation([2,3,1,4])
@@ -47,6 +63,17 @@ class TestPermutation(unittest.TestCase):
     def test_order(self):
         a=Permutation([2,3,1,4])
         self.assertEqual(1 ** a ** -1, 3)
+        
+    def test_cycle_notation(self):
+        a = Permutation([1,2,3,4,5,6])
+        b = Permutation([1,3,2,5,6,4])
+        c = Permutation([2,3,4,5,6,1])
+        d = Permutation([6,4,5,2,3,1])
+        self.assertEqual(a.cycle_notation(), [])
+        self.assertEqual(b.cycle_notation(), [[2,3],[4,5,6]])
+        self.assertEqual(c.cycle_notation(), [[1,2,3,4,5,6]])
+        self.assertEqual(d.cycle_notation(), [[1,6],[2,4],[3,5]])
+        
         
     
 def all_tests_suite():

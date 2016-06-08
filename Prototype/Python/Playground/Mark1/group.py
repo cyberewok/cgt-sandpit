@@ -89,8 +89,17 @@ class PermGroup(PermCoset):
         self.chain_generators = chain_gens
         self.schreier_graphs = sgs
         self.size = None
-        
+    
+    #len has to return an int so this will not work for large groups unfortunately.
     def __len__(self):
+        if self.size is None:
+            total = 1
+            for num_cosets in [len([g for g in sg if g is not None]) for sg in self.schreier_graphs]:
+                total *= num_cosets
+            self.size = total
+        return self.size
+    
+    def order(self):
         if self.size is None:
             total = 1
             for num_cosets in [len([g for g in sg if g is not None]) for sg in self.schreier_graphs]:

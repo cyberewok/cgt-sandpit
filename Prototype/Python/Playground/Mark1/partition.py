@@ -1,3 +1,4 @@
+from permutation import Permutation
 """This module contains partition and partition stack support."""
 
 class Partition():
@@ -10,8 +11,16 @@ class Partition():
     def __lt__(self, other):
         return NotImplemented
     
-    def __pow__(self, num):
-        return NotImplemented 
+    def __pow__(self, perm):
+        if isinstance(perm, Permutation):
+            new_cells = []
+            for cell in self._cells:
+                new_cell = []
+                for num in cell:
+                    new_cell.append(num ** perm)
+                new_cells.append(new_cell)
+            return Partition(new_cells)
+        raise TypeError("Cannot find image for types {} and {}.".format(type(self), type(perm))) 
     
     def __str__(self):
         element_list = [" ".join([str(num) for num in cell]) for cell in self._cells]
@@ -39,18 +48,22 @@ class Partition():
             new_cell = sorted(list(set(split_cell) & index_set))
         else:
             new_cell = split_cell
-        if len(new_cell) > 0:
+        ret_cells = [cell for cell in self._cells]                    
+        if len(new_cell) > 0 and len(new_cell) < len(index_cell):
             leftovers = sorted(list(index_set.difference(new_cell)))
-            ret_cells = [cell for cell in self._cells]
             ret_cells[index] = leftovers
             ret_cells.append(new_cell)
         return Partition(ret_cells, False)
 
+    def discrete(self):
+        return max(len(cell) for cell in self._cells) == 1
+
 class PartitionStack():
     def __init__(self, final_indices, split_indices):
         self._height = max(final_indices) + 1
-        self._finals = final_indices
-        self._parents = split_indices
+        self._finals = final_indices #the cell num for each index in the top partition.
+        self._parents = split_indices #the max height at which this element was put at end.
+        self.base_size = len(self._parents)
         
     def __lt__(self, other):
         return NotImplemented
@@ -94,14 +107,18 @@ class PartitionStack():
     def extend(self, index, split_cell, checks = True):
         if checks:
             new_cell = [e for e in split_cell if self._finals[e - 1] == index]
+            empty = len(new_cell) == 0  
+            too_big = len(new_cell) == len([1 for x in self._finals if x==index])
+            if empty or too_big:
+                return self
         else:
-            new_cell = split_cell
+            new_cell = split_cell        
         
         for element in new_cell:
             self._finals[element - 1] = self._height
             self._parents[element - 1] = index
-        
         self._height += 1
+
         return self
     
     def fix(self):
@@ -138,3 +155,10 @@ class PartitionStack():
             
         self._height -= 1    
         return self
+    
+    def discrete(self):
+        #cells = set()
+        #for cell_id in self._finals:
+        #    cells.add(cell_id)
+        #return len(cells) == len(self._finals)
+        return max(self._finals) == len(self._finals) - 1

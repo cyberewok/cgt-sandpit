@@ -1,5 +1,6 @@
 import unittest
 from partition import Partition, PartitionStack
+from permutation import Permutation
 
 class TestPartition(unittest.TestCase):
     
@@ -15,11 +16,28 @@ class TestPartition(unittest.TestCase):
         self.assertNotEqual(b,c)                     
         self.assertNotEqual(a,b)
     
+    def test_pow(self):
+        perm = Permutation.read_cycle_form([[1,2],[5,3]], 5)
+        a = Partition([[1,2,3], [4,5]])
+        b = a ** perm
+        c = Partition([[1,5,2], [4,3]])
+        d = b ** perm
+        self.assertEqual(a,d)
+        self.assertEqual(b,c)              
+        self.assertNotEqual(a,c)                     
+        self.assertNotEqual(b,d)        
+    
     def test_extend(self):
         a = Partition([[1,2,3],[4,5],[8],[6,7]])        
         b = a.extend(3, [6]).extend(0, [1,2])
         c = Partition([[3],[5,4],[8],[7],[6],[1,2]])
         self.assertEqual(b,c)
+        
+    def test_discrete(self):
+        a = Partition([[3],[1],[2]])
+        b = Partition([[1,2],[3],[4]])
+        self.assertTrue(a.discrete())
+        self.assertFalse(b.discrete())
         
 class TestPartitionStack(unittest.TestCase):
     def test_use_case(self):
@@ -56,6 +74,22 @@ class TestPartitionStack(unittest.TestCase):
         self.assertEqual(extention[2], Partition([[1,2],[3,5],[4]]))
         self.assertEqual(extention[3], Partition([[1],[3,5],[4],[2]]))
         self.assertEqual(extention[4], Partition([[1],[3],[4],[2],[5]]))
+
+        base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]) 
+        base.extend(0, [])
+        self.assertEqual(len(base[1]), 1)
+        base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]) 
+        base.extend(0, [1,2,3,4,5])
+        self.assertEqual(len(base[1]), 1)
+
+    def test_discrete(self):
+        base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1])
+        base.extend(0,[3,4,5])
+        base.extend(1,[4])
+        base.extend(0,[2])
+        self.assertFalse(base.discrete())
+        base.extend(1,[5])
+        self.assertTrue(base.discrete())
         
     def test_fix(self):
         stack = PartitionStack([6,2,4,7,0,0,3,5,1,4],[1,1,0,2,-1,-1,0,4,0,0])
