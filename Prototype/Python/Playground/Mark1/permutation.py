@@ -36,15 +36,7 @@ class Permutation():
         return [self._image(num) for num in nums]
     
     def __lt__(self, other):
-        num_cycles = len(self.cycle_notation())
-        num_cycles_other = len(other.cycle_notation())
-        if num_cycles != num_cycles_other:
-            return num_cycles < num_cycles_other
-        cycle_sizes = [len(cycle) for cycle in self.cycle_notation()]
-        cycle_sizes_other = [len(cycle) for cycle in other.cycle_notation()]
-        if cycle_sizes != cycle_sizes_other:
-            return cycle_sizes > cycle_sizes_other
-        return self.cycle_notation() < other.cycle_notation()
+        return self._func<other._func
     
     def __mul__(self, perm):
         if not isinstance(perm, self.__class__):
@@ -57,8 +49,10 @@ class Permutation():
             for index, value in enumerate(self._func):
                 inverse[value - 1] = index + 1
             return Permutation(inverse)
+        elif isinstance(num,int) and num>=0:
+            return _fast_expo(num)
         else:
-            raise TypeError("Cannot find inverse for {} {}.".format(type(self), num))
+            raise TypeError("Cannot compute exponent for type {} to the power of {}.".format(type(self), num))
     
     #__xor__ = __pow__    
     
@@ -66,7 +60,6 @@ class Permutation():
         if isinstance(num, int):
             return self._image(num)
         raise TypeError("Cannot find image for types {} and {}.".format(type(num), type(self)))
-    
     
     #__rxor__ = __rpow__     
     
@@ -118,3 +111,18 @@ class Permutation():
             #ret.append([])
         self._cycle_form = ret
         return ret
+    
+    def _fast_expo(num):
+        return NotImplemented
+    
+    @staticmethod
+    def cycle_length_comparison(self, other):
+        num_cycles = len(self.cycle_notation())
+        num_cycles_other = len(other.cycle_notation())
+        if num_cycles != num_cycles_other:
+            return num_cycles < num_cycles_other
+        cycle_sizes = [len(cycle) for cycle in self.cycle_notation()]
+        cycle_sizes_other = [len(cycle) for cycle in other.cycle_notation()]
+        if cycle_sizes != cycle_sizes_other:
+            return cycle_sizes > cycle_sizes_other
+        return self.cycle_notation() < other.cycle_notation()    

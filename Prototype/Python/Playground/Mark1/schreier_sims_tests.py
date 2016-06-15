@@ -58,7 +58,22 @@ class TestSchreierSims(unittest.TestCase):
         identity = Permutation([1,2,3,4])
         b = Permutation([3,2,1,4])
         s_g = [identity,None,b,None]
-        self.assertEquals(s_g, _coset_rep_inverses(s_g, identity))    
+        self.assertEquals(s_g, _coset_rep_inverses(s_g, identity))
+    
+    def test_schreier_sims_algorithm(self):
+        cf  =Permutation.read_cycle_form
+        a = cf([[1, 2]],4)
+        b = cf([[1,2,3,4]], 4)
+        c = cf([[2, 3, 4]], 4)
+        d = cf([[2, 3]], 4)
+        e = cf([], 4)
+        info = schreier_sims_algorithm([], e)
+        self.assertEquals(info, ([],[],[],[]))
+        info = schreier_sims_algorithm([e,e,e,e], e)
+        self.assertEquals(info, ([],[],[],[]))
+        base, gens, c_gens, graphs = schreier_sims_algorithm([a,b], e)
+        self.assertEquals(len(base), 3)
+        
 
 def all_tests_suite():
     suite = unittest.TestSuite()

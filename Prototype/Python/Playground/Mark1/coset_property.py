@@ -13,3 +13,6 @@ def _identity():
     
 def partition_stabaliser(partition):
     return lambda perm: partition**perm == partition
+
+def permutation_commuter(perm):
+    return lambda com: perm * com == com * perm

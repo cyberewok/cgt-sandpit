@@ -132,7 +132,10 @@ def schreier_sims_algorithm(generators, identity):
     chain_generators = [generators]
     chain_schreier_generators = [None]
     schreier_graphs = [None]
-    gen = chain_generators[0][0]
+    try:
+        gen = next(gen for gen in chain_generators[0] if gen != identity)
+    except(StopIteration):
+        return [],[],[],[]
     first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**gen != num)
     base = [first_non_fixed]
     level = 0

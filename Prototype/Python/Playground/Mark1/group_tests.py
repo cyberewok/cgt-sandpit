@@ -5,6 +5,9 @@ from group import PermCoset, PermGroup
 class TestCoset(unittest.TestCase):
     pass
 
+class TestDoubleCoset(unittest.TestCase):
+    pass
+
 class TestGroup(unittest.TestCase):
  
     def contains_membership_test(self, group, subgroup):
@@ -18,6 +21,13 @@ class TestGroup(unittest.TestCase):
                 self.assertTrue(g in H)
             if g in H:
                 self.assertTrue(g in H_ele)  
+    
+    def test_empty_initialisation(self):
+        s1 = Permutation.read_cycle_form([], 3)
+        G = PermGroup([s1])
+        self.assertEqual(len(G), 1)
+        G = PermGroup([])
+        self.assertEqual(len(G), 1)
     
     def test_initialisation(self):
         s1 = Permutation.read_cycle_form([[2,3,5,7],[9, 10]], 10)

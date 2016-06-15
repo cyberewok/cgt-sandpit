@@ -1,45 +1,35 @@
+if __name__ == '__main__':
+    import sys
+    abs_path = "C:\\Users\\admin-u5887726\\Google Drive\\Phd\\Programming\\cgt-sandpit\\Prototype\\Python\\Playground\\Mark1"
+    sys.path.append(abs_path)
+
+from partition import Partition
 from permutation import Permutation
 from group import PermGroup as Group
+from coset_property import permutation_commuter
 
-"""2d_rubiks_example"""
-def get_gens(big_rectangle, small_rectangle):
-    (W, H) = big_rectangle
-    (w, h) = small_rectangle
-    (w, h) = (w-1, h-1)
-    grid = [list(range(s, s + W)) for s in range(1, H*W+1, W)]
-    gens = []
-    for row in range(H-h):
-        for col in range(W-w):
-            gen = []
-            #top row
-            for index in range(col, col + w):
-                gen.append(grid[row][index])
-            #right col
-            for index in range(row, row + h):
-                gen.append(grid[index][col + w])
-            #bottom row
-            for index in range(col + w, col, -1):
-                gen.append(grid[row+h][index])
-            #left col
-            for index in range(row + h, row, -1):
-                gen.append(grid[index][col])
-            gens.append(gen)
-    return [Permutation.read_cycle_form([gen],W*H) for gen in gens]
 
-def get_group(big_rectangle, small_rectangle):
-    return Group(get_gens(big_rectangle, small_rectangle))
+cf =Permutation.read_cycle_form
+a = cf([[1, 2]],4)
+check = permutation_commuter(a)
+b = cf([[1,2,3,4]], 4)
+c = cf([[3, 4]], 4)
+d = cf([[2, 3]], 4)
+e = cf([[3, 4]], 4)
+G = Group([a,b])   
+G1 = Group([c,d])
+G2 = Group([e])
+identity = cf([],4)
+sub = Group([identity])
+for g in G._list_elements():
+    d = sub * g * sub
+    p_flag = check(g)
+    d_flag = d.mid_minimal()
+    if g != identity and p_flag and d_flag:
+        sub = Group([t for t in sub.generators + [g] if t != identity])
+    print("{}\nprop: {}\nmin: {} sub: {}\nd: {}\n".format(g, p_flag, d_flag, sub.generators, d._list_elements()))
+Dcosets = [(G2*g*G1, g) for g in G._list_elements()]
+for d, g in sorted(Dcosets,key = lambda x: x[0]._list_elements()):
+    eles = d._list_elements()
+    #print("{} ({}) {}:\n{}\n".format(g,len(eles),d.mid_minimal(),eles))
 
-def num_cosets(group, big_rectangle):
-    (W,H) = big_rectangle
-    return fac(W*H)//group.order()
-
-def fac(x):
-    if x<2:
-        return 1
-    return x*fac(x-1)
-
-for size in range(3, 4):
-    g = get_group((size,size),(2,2))
-    num_elements = g.order()
-    print("{}: {} ({} {})".format(size, num_cosets(g, (size,size)), num_elements, fac(size*size)))
-            

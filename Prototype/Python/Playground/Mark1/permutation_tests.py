@@ -12,6 +12,9 @@ class TestPermutation(unittest.TestCase):
     
     def test_cycle_form_reading(self):
         a=Permutation([2,3,1,4])
+        b=Permutation.read_cycle_form([],4)
+        e=Permutation([1,2,3,4])
+        self.assertEqual(b, e)        
         self.assertEqual(a, Permutation.read_cycle_form([[1,2,3]],4))
         self.assertEqual(a, Permutation.read_cycle_form([[2,3,1]],4))
         self.assertEqual(a, Permutation.read_cycle_form([[3,1,2]],4))
@@ -72,9 +75,7 @@ class TestPermutation(unittest.TestCase):
         self.assertEqual(a.cycle_notation(), [])
         self.assertEqual(b.cycle_notation(), [[2,3],[4,5,6]])
         self.assertEqual(c.cycle_notation(), [[1,2,3,4,5,6]])
-        self.assertEqual(d.cycle_notation(), [[1,6],[2,4],[3,5]])
-        
-        
+        self.assertEqual(d.cycle_notation(), [[1,6],[2,4],[3,5]])      
     
 def all_tests_suite():
     suite = unittest.TestSuite()
