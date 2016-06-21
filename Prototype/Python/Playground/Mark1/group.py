@@ -2,20 +2,57 @@ from permutation import Permutation
 import schreier_sims as schreier_sims_tools
 
 class PermGroup():
-    def __init__(self, generators):
+    def __init__(self, generators, screirer_sims_info = None):
         self.generators = generators        
         if len(generators) > 0:
             g = self.generators[0]
             self.identity = g**-1 * g
         else:
             self.identity = Permutation([1])
-        b, strong_gens, chain_gens, sgs = schreier_sims_tools.schreier_sims_algorithm(self.generators, self.identity)
+        if screirer_sims_info is None:
+            b, strong_gens, chain_gens, sgs = schreier_sims_tools.schreier_sims_algorithm(self.generators, self.identity)
+        else:
+            b, strong_gens, chain_gens, sgs = screirer_sims_info
         self.base = b
         self.strong_generators = strong_gens
         self.chain_generators = chain_gens
         self.schreier_graphs = sgs
         self.size = None
         self.elements = None
+
+    @classmethod
+    def fixed_base_group(cls, gens, base):
+        if len(gens) > 0:
+            g = gens[0]
+            e = g**-1 * g
+        else:
+            e = Permutation([1])        
+        return cls(gens, schreier_sims_tools.schreier_sims_algorithm_fixed_base(gens, base, e))
+
+    def orbit(self, num, stab_level = 0, key = None):
+        if stab_level < len(self.schreier_graphs) and self.schreier_graphs[stab_level][num - 1] is not None:
+            orb = [index + 1 for index, ele in enumerate(self.schreier_graphs[stab_level]) if ele is not None]
+        else:
+            orb = self._orbit_computation(num, stab_level)
+        return sorted(orb, key = key)
+    
+    def _orbit_computation(self, num, stab_level):
+        gens = self.chain_generators[stab_level]
+        frontier = [num]
+        orb = set(frontier)
+        while len(frontier) > 0:
+            next_frontier = []
+            for gen in gens:
+                for num in frontier:
+                    cand = num**gen
+                    if cand not in orb:
+                        orb.add(cand)
+                        next_frontier.append(cand)
+            frontier = next_frontier
+        return orb
+    
+    def base_image_member(self, image):
+        return schreier_sims_tools.base_image_member(self.base, image, self.schreier_graphs, self.identity)
     
     #len has to return an int so this will not work for large groups unfortunately.
     def __len__(self):
@@ -68,8 +105,8 @@ class PermGroup():
             return NotImplemented
     
     def _list_elements(self, key = None):
-        if self.elements is not None:
-            return self.elements
+#        if self.elements is not None:
+#            return self.elements
         elements_found = set(self.generators + [self.identity])
         frontier = list(self.generators)
         while len(frontier) != 0:

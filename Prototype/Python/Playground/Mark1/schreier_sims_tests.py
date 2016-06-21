@@ -1,6 +1,7 @@
 import unittest
 from permutation import Permutation
-from schreier_sims import schreier_sims_algorithm
+from schreier_sims import schreier_sims_algorithm, schreier_sims_algorithm_fixed_base
+from schreier_sims import membership_siftee, base_image_member
 from schreier_sims import _coset_rep_inverses, _coset_reps, _coset_rep_inverse
 from schreier_sims import _schreier_graph, _schreier_graph_expand
 from schreier_sims import _schreier_generators
@@ -58,7 +59,16 @@ class TestSchreierSims(unittest.TestCase):
         identity = Permutation([1,2,3,4])
         b = Permutation([3,2,1,4])
         s_g = [identity,None,b,None]
-        self.assertEquals(s_g, _coset_rep_inverses(s_g, identity))
+        self.assertEqual(s_g, _coset_rep_inverses(s_g, identity))
+    
+    def test_base_image_member(self):
+        cf  =Permutation.read_cycle_form
+        a = cf([[1, 2]],4)
+        b = cf([[1,2,3,4]], 4)
+        c = cf([[2,3]], 4)
+        e = cf([],4)
+        base, gens, c_gens, graphs = schreier_sims_algorithm_fixed_base([a,b],[1,2,3,4], e)
+        self.assertEqual(base_image_member(base,[1,3,2],graphs,e), c)
     
     def test_schreier_sims_algorithm(self):
         cf  =Permutation.read_cycle_form
@@ -74,6 +84,32 @@ class TestSchreierSims(unittest.TestCase):
         base, gens, c_gens, graphs = schreier_sims_algorithm([a,b], e)
         self.assertEquals(len(base), 3)
         
+    def test_schreier_sims_algorithm_fixed_base(self):
+        cf  =Permutation.read_cycle_form
+        a = cf([[1, 2]],4)
+        b = cf([[1,2,3,4]], 4)
+        c = cf([[2, 3, 4]], 4)
+        d = cf([[2, 3], [1,4]], 4)
+        e = cf([], 4)
+        info = schreier_sims_algorithm_fixed_base([], [1,2,3,4], e)
+        self.assertEquals(info, ([],[],[],[]))
+        info = schreier_sims_algorithm_fixed_base([e,e,e,e], [1,2,3,4], e)
+        self.assertEquals(info, ([],[],[],[]))
+        base, gens, c_gens, graphs = schreier_sims_algorithm_fixed_base([a,b], [4,3], e)
+        self.assertEquals(len(base), 3)
+        self.assertEquals(base[:2], [4,3])
+        base, gens, c_gens, graphs = schreier_sims_algorithm_fixed_base([c,d], [4,1], e)
+        self.assertEquals(base[:2], [4,1])
+        siftee = membership_siftee(a, graphs, base, e)
+        self.assertNotEqual(siftee, e)
+        siftee = membership_siftee(cf([[1,2,3]],4), graphs, base, e)
+        self.assertEqual(siftee, e)
+        base, gens, c_gens, graphs = schreier_sims_algorithm_fixed_base([c], [1,2,3,4], e)
+        self.assertEquals(base[:2], [1,2])
+        siftee = membership_siftee(a, graphs, base, e)
+        self.assertNotEqual(siftee, e)
+        siftee = membership_siftee(cf([[2,4,3]],4), graphs, base, e)
+        self.assertEqual(siftee, e)        
 
 def all_tests_suite():
     suite = unittest.TestSuite()

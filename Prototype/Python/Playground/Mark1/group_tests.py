@@ -1,12 +1,18 @@
 import unittest
 from permutation import Permutation
-from group import PermCoset, PermGroup
+from group import PermDoubleCoset, PermCoset, PermGroup
 
 class TestCoset(unittest.TestCase):
     pass
 
 class TestDoubleCoset(unittest.TestCase):
-    pass
+    
+    def test_trivial_double_coset(self):
+        G = PermGroup([Permutation([1,2,3,4])])
+        a = Permutation([1,3,2,4])
+        dcs = G*a*G
+        self.assertTrue(a in dcs._list_elements())
+        
 
 class TestGroup(unittest.TestCase):
  
@@ -20,7 +26,11 @@ class TestGroup(unittest.TestCase):
             if g in H_ele:
                 self.assertTrue(g in H)
             if g in H:
-                self.assertTrue(g in H_ele)  
+                self.assertTrue(g in H_ele)
+            if g not in H_ele:
+                self.assertFalse(g in H)
+            if g not in H:
+                self.assertFalse(g in H_ele)
     
     def test_empty_initialisation(self):
         s1 = Permutation.read_cycle_form([], 3)
@@ -106,8 +116,46 @@ class TestGroup(unittest.TestCase):
         self.assertEqual(len(G), total)
         self.assertEqual(sorted(G._list_elements()), sorted(elements))
     
+    def test_fixed_base_group(self):
+        g1 = Permutation.read_cycle_form([[1,2,3,4,5,6,7]], 7)
+        g2 = Permutation.read_cycle_form([[1,2]], 7)
+        h1 = Permutation.read_cycle_form([[3,4,5,6,7]], 7)
+        h2 = Permutation.read_cycle_form([[3,4]], 7)
+        G = PermGroup.fixed_base_group([g1, g2], [5,4,7])
+        H = PermGroup.fixed_base_group([h1, h2], [1,2,3,4,5,6,7])
+        N = PermGroup.fixed_base_group([g1,h1], [])
+        self.assertEqual(G.base[:3], [5,4,7])
+        self.assertEqual(H.base[:4], [1,2,3,4])
+        self.contains_membership_test(G, H)
+        
+    def test_base_image_member(self):
+        h1 = Permutation.read_cycle_form([[3,4,5,6,7]], 7)
+        h2 = Permutation.read_cycle_form([[3,4]], 7)
+        H = PermGroup.fixed_base_group([h1, h2], [3,4,5,6])
+        self.assertEqual(H.base, [3,4,5,6])
+        image1 = [1,2,3,4]
+        image2 = [5,3,4,6]
+        self.assertTrue(H.base_image_member(image1) is None)
+        self.assertEqual(H.base_image_member(image2), Permutation.read_cycle_form([[3,5,4]],7))   
+    
+    def test_orbit(self):
+        g1 = Permutation.read_cycle_form([[1,2,3,4]], 4)
+        g2 = Permutation.read_cycle_form([[1,2]], 4)
+        base = [3,4,1]
+        reverse_priority = [3,4,1,2]
+        G = PermGroup.fixed_base_group([g1, g2], base)
+        self.assertEqual(G.orbit(1), [1,2,3,4])
+        self.assertEqual(G.orbit(1, stab_level = 0), [1,2,3,4])
+        self.assertEqual(G.orbit(1, stab_level = 1), [1,2,4])
+        self.assertEqual(G.orbit(1, stab_level = 2), [1,2])
+        self.assertEqual(G.orbit(1, stab_level = 3), [1])
+        self.assertEqual(G.orbit(1, key = lambda x : reverse_priority[x - 1]), [3,4,1,2])
+        
+        
+    
 def all_tests_suite():
     suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(TestDoubleCoset))
     suite.addTest(unittest.makeSuite(TestCoset))
     suite.addTest(unittest.makeSuite(TestGroup))
     return suite

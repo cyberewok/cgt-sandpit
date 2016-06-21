@@ -6,8 +6,8 @@ class Permutation():
         self._func = tuple(nums)
         self._cycle_form = None
     
-    @staticmethod
-    def read_cycle_form(cycle_form, size = None):
+    @classmethod
+    def read_cycle_form(cls, cycle_form, size = None):
         if size is None:
             size = max([max(cycle) for cycle in cycle_form])
         nums = list(range(1, size + 1))    
@@ -19,15 +19,14 @@ class Permutation():
             for num in cycle[1:]:
                 nums[prev - 1] = num
                 prev = num
-        ret = Permutation(nums)
-        return ret
+        return cls(nums)
     
-    @staticmethod
-    def read_partitions(part_a, part_b):
+    @classmethod
+    def read_partitions(cls, part_a, part_b):
         nums = [0] * len(part_a)
         for index in range(len(part_a)):
             nums[part_a[index][0] - 1] = part_b[index][0]
-        return Permutation(nums)
+        return cls(nums)
             
     def _image(self, num):
         return self._func[num-1]

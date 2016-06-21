@@ -126,6 +126,17 @@ def membership_siftee(candidate, schreier_graphs, base, identity):
             candidate = candidate * coset_rep
     return candidate
 
+def base_image_member(base, image, schreier_graphs, identity):
+    candidate = identity
+    for index, (num, schreier_graph) in enumerate(zip(base, schreier_graphs)):
+        coset_rep = _coset_rep_inverse(image[index], schreier_graph, identity)
+        if coset_rep is None:
+            return None
+        else:
+            candidate = candidate * coset_rep
+            image = [ele**coset_rep for ele in image]
+    return candidate**-1
+
 def schreier_sims_algorithm(generators, identity):
     """Returns a base, a strong generating list, a list of lists of the 
     subgroup chain generators and the schreier trees for the given generators."""
@@ -149,7 +160,7 @@ def schreier_sims_algorithm(generators, identity):
             schreier_graph = _schreier_graph(num, gens, identity)
             schreier_graphs[level] = schreier_graph
             coset_reps = _coset_reps(schreier_graph, identity)
-            # need in reverse order as they will be popped off.
+            # need in reverse order as they will be popped off. Not strictly nec.
             schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens, identity)))
             chain_schreier_generators[level] = schreier_gens
             
@@ -195,3 +206,84 @@ def schreier_sims_algorithm(generators, identity):
                 unique_check.add(gen)
     
     return base, strong_gens, chain_generators, schreier_graphs[:-1]
+
+def schreier_sims_algorithm_fixed_base(generators, base_cand, identity):
+    """Returns a base, a strong generating list, a list of lists of the 
+    subgroup chain generators and the schreier trees for the given generators.
+    The base will be a prefix of base_cand or will be an extention of base 
+    cand."""
+    chain_generators = [generators]
+    chain_schreier_generators = [None]
+    schreier_graphs = [None]
+    try:
+        gen = next(gen for gen in chain_generators[0] if gen != identity)
+    except(StopIteration):
+        return [],[],[],[]
+    base = []
+    base.append(base_point(base, base_cand, gen, identity))
+    level = 0
+    while level > -1:
+        schreier_gens = chain_schreier_generators[level]
+        if schreier_gens is None: #first time at this level
+            num = base[level]
+            schreier_graph = schreier_graphs[level]
+            gens = chain_generators[level]
+            #unnecciary? if schreier_graph is None: #populate for first time
+            schreier_graph = _schreier_graph(num, gens, identity)
+            schreier_graphs[level] = schreier_graph
+            coset_reps = _coset_reps(schreier_graph, identity)
+            # need in reverse order as they will be popped off. Not strictly nec.
+            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens, identity)))
+            chain_schreier_generators[level] = schreier_gens
+            
+            chain_generators.append([]) #make next level.
+            chain_schreier_generators.append(None)
+            schreier_graphs.append([])
+        
+        elif len(schreier_gens) == 0: #have previously exhausted this level
+            num = base[level]
+            schreier_graph = schreier_graphs[level]
+            gens = chain_generators[level]
+            _schreier_graph_expand(schreier_graph, gens, len(gens) - 1)
+            coset_reps = _coset_reps(schreier_graph, identity)
+            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens[-1:], identity)))
+            chain_schreier_generators[level] = schreier_gens
+        
+        membership_pass = True #have we passed all membership tests?            
+        
+        while membership_pass and len(schreier_gens) > 0:
+            gen = schreier_gens.pop()
+            schreier_graphs_membership = schreier_graphs[level+1:]
+            base_membership = base[level+1:] 
+            siftee = membership_siftee(gen, schreier_graphs_membership, base_membership, identity)
+            if siftee != identity:
+                membership_pass = False
+                chain_generators[level+1].append(siftee)
+                if len(base) == level + 1: #also need to add to base.
+                    first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**siftee != num)                
+                    base.append(base_point(base, base_cand, siftee, identity))                        
+        
+        if membership_pass: #exhausted this level so check for next schreier gen of prior level.
+            level = level - 1
+            
+        else: #needed to add to the generators so need to check down recursively.
+            level = level + 1
+    
+    strong_gens = []
+    unique_check = set()
+    for gens in chain_generators:
+        for gen in gens:
+            if gen not in unique_check:
+                strong_gens.append(gen)
+                unique_check.add(gen)
+    
+    return base, strong_gens, chain_generators, schreier_graphs[:-1]
+
+def base_point(base, base_cand, siftee, identity):
+    index = len(base)
+    if index < len(base_cand):
+        return base_cand[index]
+    else:
+        first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**siftee != num)
+        return first_non_fixed
+        

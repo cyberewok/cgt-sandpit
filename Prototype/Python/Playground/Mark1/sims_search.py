@@ -1,91 +1,129 @@
-def traditional_backtrack_subgroup(group_property, refinement_family, size):
-    pbw = PartitionBacktrackWorkhorse(group_property.check, refinement_family, size)
-    return pbw.find_partition_backtrack_subgroup()
+from group import PermGroup
 
-class TraditionalBacktrackWorkhorse():
-    def __init__(self, prop_check, refinement_family, size):
+#This code needs cleaning up. This will be done if it is used as a test bed for
+#any conjugacy things.
+
+def backtrack_subgroup(super_group, group_property, cull_heuristic):
+    size = len(super_group.identity)
+    sbw = SimsBacktrackWorkhorse(super_group, group_property.check, cull_heuristic, size)
+    gens = sbw.find_subgroup()
+    return PermGroup(gens)
+
+class SimsBacktrackWorkhorse():
+    def __init__(self, super_group, prop_check, cull_heuristic, size):
+        self.group = super_group
         self.size = size
-        self.refinement_family = refinement_family
         self.prop_check = prop_check
-        self.left = Partition([0]*size,[-1]*size)
-        self.right = Partition([0]*size,[-1]*size)
-        self.functions = None
-        self.extention_indices = None
-        self.function_index = 0        
+        self.cull_check = cull_heuristic
+        self.base = self.group.base
+        self.order = self.base + sorted(list(set(range(1, self.size + 1)) - set(self.base)))
+        self.order_lookup = [None] * self.size
+        for index, element in enumerate(self.order):
+            self.order_lookup[element - 1] = index
+        self.key = lambda x: self.order_lookup[x - 1]
+        self.perm_key = lambda perm: [self.order_lookup[ele - 1] for ele in perm._func]
+        self.cur_state = []
+        self.cur_used = [False] * len(self.order)        
     
-    def find_partition_backtrack_subgroup(self):
-        generators = []
-        self.functions = self.preprocess()
-        self.extention_indices = [0] * len(self.functions)
-        
-        while self.function_index > 0:
-            #Alternative 3-4
-            self.extend_right()
-    
-            #Alternatice 1: premature rule out.
-            if self.alt1():
-                self.backtrack()
+    def find_subgroup(self):
+        double_coset_culling = True
+        multi_level_popping = True
+        actual_minimal_in_coset = False
+        gens = []
+        self.cur_state = []
+        self.cur_used = [False] * len(self.order)
+        finished = False
+        count = 0
+        coset_level = len(self.base)
+        while not finished:
+            count += 1
+            #deal with this vertex
+            if len(self.cur_state) < len(self.base):
+                #internal vertex
+                #if self.cull_heuristic(base, cur_state):
+                #PermGroup.fixed_base_group(gens, cur_state)
+                print("{} (internal)".format(self.cur_state))
+                if double_coset_culling:
+                    if not self.minimal_double_coset(gens):
+                        #print("Node contains no minimal elements.")
+                        if not self._across_level():
+                            break
+                        else:
+                            coset_level = min(coset_level, len(self.cur_state))
+                        continue
+                        
+            else:
+                #leaf
+                leaf = self.group.base_image_member(self.cur_state)
+                print(leaf)
+                if actual_minimal_in_coset:
+                    G = PermGroup(gens + [self.group.identity])
+                    dcs = G*leaf*G
+                    #print("double coset: {} Group: {} ({})  min: {} {} {}".format(dcs._list_elements(key = self.perm_key), [g for g in G._list_elements(key = self.perm_key)], len(G), dcs.minimal_rep(key=self.perm_key), dcs.minimal_rep(key=self.perm_key)==dcs.mid_rep, dcs.mid_minimal(key=self.perm_key)))
+                    if dcs.mid_minimal(key=self.perm_key):
+                        print("ACTUAL MINIMAL!")               
+                if leaf != self.group.identity and self.prop_check(leaf):
+                    #print("FOUND ELEMENT!")                    
+                    gens.append(leaf)
+                    # found an element so pop till new coset
+                    if multi_level_popping:
+                        while coset_level < len(self.cur_state):
+                            if not self._up_level():
+                                break
+                        if not self._across_level():
+                            break
+                        else:
+                            coset_level = min(coset_level, len(self.cur_state))                        
+                        continue
+               
+            #print("{}".format(self.cur_state))
+            if len(self.cur_state) < len(self.base) and self._down_level():
+                continue
+            if self._across_level():
+                coset_level = min(coset_level, len(self.cur_state))
+                continue
+            if len(self.cur_state) == 0:
+                finished = True
+        return gens
             
-            #Alternative 2: discrete check.
-            elif self.right.discrete():
-                perm = Permutation.read_partitions(left[func_index], right[func_index])
-                if not perm.trivial() and self.prop_check(perm):
-                    generators.append(perm)
-                self.backtrack()
+        
+    def _down_level(self, start_index = 0):
+        index = start_index
+        while index < len(self.cur_used) and self.cur_used[index]:
+            index += 1
+        if index >= len(self.cur_used):
+            return False
+        self.cur_state.append(self.order[index])
+        self.cur_used[index] = True
+        return True
 
-        return generators
+    def _across_level(self):
+        if len(self.cur_state) < 1:
+            return False
+        ele = self.cur_state.pop()
+        index = self.order_lookup[ele - 1]
+        self.cur_used[index] = False
+        if not self._down_level(index + 1):
+            return self._across_level()
+        return True
+
+    def _up_level(self):
+        if len(self.cur_state) < 1:
+            return False
+        ele = self.cur_state.pop()
+        self.cur_used[self.order_lookup[ele - 1]] = False
+        return True
+
+    def minimal_double_coset(self, gens):
+        return self.double_coset_1(self.base[0: len(self.cur_state)], self.cur_state,gens,key= self.key)
     
-    
-    def find_partition_backtrack_coset(self):
-        pass
-    
-    def backtrack():
-        while self.function_index > 0:
-            self.right.pop()
-            if self.extention_indices[self.function_index] > 0:
-                break
-            self.function_index -= 1
-           
-    def alt1():
-        #Size violation
-        if len(self.right) != self.function_index + 1:
+    def double_coset_1(self, base, image, gens, key = None):
+        #base change (for now just recompute base but should do the proper algorithm)
+        if len(image) == 0 or len(gens) == 0:
             return True
-        elif len(self.right[-1][-1]) != len(left[self.function_index][-1]):
+        G = PermGroup.fixed_base_group(gens, image[:-1])
+        orb = G.orbit(image[-1], stab_level = len(base) - 1, key = key)
+        #print("Orbit of {} is {} in {}".format(image[-1], orb, G._list_elements()))
+        if image[-1] == orb[0]:
             return True
-        #Contained group violation.
-        #Minimal in double coset violation.
-        #Property dependant violation.
-        return False
-    
-    def extend_right(self):
-        index = self.function_index
-        special, func = self.functions[index]
-        if special:
-            split_index = func
-            cell = self.right[-1][split_index]
-            split_val = cell[self.extention_indices[index]]
-            self.right.extend(split_index, [split_val])
-            self.extention_indices[index] = (self.extention_indices[index] + 1) % len(cell)
-        else:
-            func(None, self.right)
-        self.function_index += 1
-    
-    def preprocess(self):
-        func_list = []
-        while not stack.discrete():
-            _,_,func = self.refinement_family.extend(self.left, None)
-            while func is not None:
-                func_list.append((False, func))
-                _,_,func = self.refinement_family.extend(self.left, None)
-            if not stack.discrete():
-                #this is a special level.
-                split_index = self.split_cell(self.left)
-                func_list.append(True, split_index)
-        return func_list
-    
-    def split_cell(self, stack):
-        top = stack[-1]
-        _, index = max([(len(cell),index) for index, cell in enumerate(top)])
-        split_cell = [min(top[index])]
-        stack.extend(index, split_cell)
-        return index
+        return False    
