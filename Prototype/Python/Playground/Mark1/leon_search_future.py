@@ -8,6 +8,54 @@ def partition_backtrack_subgroup(group_property, refinement_family, size):
     pbw = PartitionBacktrackWorkhorse(group_property, refinement_family, size)
     return PermGroup(pbw.find_partition_backtrack_subgroup())
 
+class LeonSearch():
+    def __init__(self, group_property, refinement_family, size):
+        self.size = size
+        self.refinement_family = refinement_family
+        self.group_property = group_property
+        self.left = PartitionStack([0]*size,[-1]*size)
+        self.right = PartitionStack([0]*size,[-1]*size)
+        self._cur_height = 0
+        self._cur_position = None
+        self._special_lookup = None
+        self._left_split_index = None
+    
+    def r_base(self):
+        r_base = []
+        special_cell_sizes = []
+        special_lookup = dict()
+        height = 0
+        while height < self.size -1:
+            _,_,func = self.refinement_family.extend(self.left, None)
+            r_base.append(func)            
+            if func is not None:
+                special_cell_sizes.append(0)
+            else:
+                cell, cell_size, point = self._split_left_cell()
+                special_cell_sizes.append(cell_size)
+                special_lookup[height] = (cell, point)
+            height += 1
+        self._cur_position = PositionTracker(special_cell_sizes)
+        self._special_lookup = special_lookup
+        return r_base        
+        
+    def subgroup():
+    
+    def coset():
+        
+    def _split_left_cell(self):
+        #Overwrite this with a clever function that queries the refinements for
+        #clues as to which cell and element to split.
+        top = self.left[-1]
+        if self._left_split_index is None or len(top[self._left_split_index]) < 2:
+            _, self._left_split_index = min([(len(cell),index) for index, cell in enumerate(top) if len(cell) > 1])
+        cell = top[self._left_split_index]
+        point = cell[0]
+        cell_size = len(cell)
+        #Turn checks off.
+        self.left.extend(self._left_split_index, [point])
+        return self._left_split_index, cell_size, point
+
 class PartitionBacktrackWorkhorse():
     def __init__(self, group_property, refinement_family, size):
         self.size = size

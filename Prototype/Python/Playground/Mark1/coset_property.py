@@ -1,18 +1,37 @@
 class CosetProperty():
-    def __init__(self, check_functions):
-        self.functions = check_functions
+    def __init__(self, properties):
+        self.props = properties
     
     def check(self, perm):
-        for func in self.functions:
-            if not func(perm):
+        for prop in self.props:
+            if not prop.check(perm):
                 return False
         return True
 
-def _identity():
-    return lambda perm: True
+class IdentityProperty():
+    def __init__(self):
+        pass
     
-def partition_stabaliser(partition):
-    return lambda perm: partition**perm == partition
+    def check(self, perm):
+        return True
 
-def permutation_commuter(perm):
-    return lambda comm: perm * comm == comm * perm
+class SubgroupProperty():
+    def __init__(self, group):
+        self.group = group
+    
+    def check(self, perm):
+        return perm in self.group
+    
+class PartitionStabaliserProperty():
+    def __init__(self, partition):
+        self.partition = partition
+    
+    def check(self, perm):    
+        return self.partition**perm == self.partition
+
+class PermutationCommuterProperty():
+    def __init__(self, perm):
+        self.perm = perm
+    
+    def check(self, comm):
+        return self.perm * comm == comm * self.perm

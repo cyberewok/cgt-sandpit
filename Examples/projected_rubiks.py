@@ -1,7 +1,6 @@
 if __name__ == '__main__':
-    import sys
-    abs_path = "C:\\Users\\admin-u5887726\\Google Drive\\Phd\\Programming\\cgt-sandpit\\Prototype\\Python\\Playground\\Mark1"
-    sys.path.append(abs_path)
+    from _example_path_tools import add_path_examples
+    add_path_examples()
 
 from permutation import Permutation
 from group import PermGroup as Group

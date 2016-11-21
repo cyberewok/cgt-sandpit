@@ -75,7 +75,7 @@ class PartitionStack():
         self._height = max(final_indices) + 1
         self._finals = final_indices #the cell num for each index in the top partition.
         self._parents = split_indices #the max height at which this element was put at end.
-        self.base_size = len(self._parents)
+        self.degree = len(self._parents)
     
     @classmethod
     def deep_copy(cls, stack):
@@ -117,28 +117,35 @@ class PartitionStack():
     def __ne__(self, other):
         return not self.__eq__(other)
     
-    def __getitem__(self, index):
-        cells = [[] for _ in range(self._height)]
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            copy = self.deep_copy(self)
+            stop_con = key.stop
+            while copy._height > stop_con:
+                copy.pop()
+            return copy
+        elif isinstance(key, int):
+            cells = [[] for _ in range(self._height)]
+            
+            if key < 0:
+                key = key + self._height
+            
+            for enum, cell_index in enumerate(self._finals):
+                element = enum + 1
+                cells[cell_index].append(element)
         
-        if index < 0:
-            index = index + self._height
+            for cell in reversed(cells[key + 1:]):
+                min_split = self._parents[cell[0] - 1]
+                cells[min_split] += cell
         
-        for enum, cell_index in enumerate(self._finals):
-            element = enum + 1
-            cells[cell_index].append(element)
-
-        for cell in reversed(cells[index + 1:]):
-            min_split = self._parents[cell[0] - 1]
-            cells[min_split] += cell
-
-        return Partition(cells[:index + 1])
+            return Partition(cells[:key + 1])
+        else:
+            raise TypeError("{} not supported for indexing".format(type(key)))
     
     def extend(self, index, split_cell, checks = True):
         if checks:
-            new_cell = [e for e in split_cell if self._finals[e - 1] == index]
-            empty = len(new_cell) == 0  
-            too_big = len(new_cell) == len([1 for x in self._finals if x==index])
-            if empty or too_big:
+            new_cell = self._valid_intersection(index, split_cell)
+            if new_cell is None:
                 return self
         else:
             new_cell = split_cell        
@@ -149,6 +156,17 @@ class PartitionStack():
         self._height += 1
 
         return self
+    
+    def can_extend(self, index, split_cell):
+        return self._valid_intersection(index, split_cell) is not None
+        
+    def _valid_intersection(self, index, split_cell):
+        new_cell = [e for e in split_cell if self._finals[e - 1] == index]
+        empty = len(new_cell) == 0  
+        too_big = len(new_cell) == len([1 for x in self._finals if x==index])
+        if empty or too_big:
+            return None
+        return new_cell  
     
     def fix(self):
         ret_val = []
@@ -175,6 +193,9 @@ class PartitionStack():
     def pop(self):
         top_partition = self[-1]
         
+        if self._height == 1:
+            raise IndexError("pop from unitary stack")
+            
         new_cell_index = self._parents[top_partition[-1][0] - 1]   
         new_parent_index = self._parents[top_partition[new_cell_index][0] - 1] 
         

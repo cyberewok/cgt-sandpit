@@ -1,30 +1,27 @@
 from group import PermGroup as Group
 from partition import PartitionStack
 
-class Refinement():
+class RefinementFamily():
+    def extension_functions(self, left):
+        pass
+
+class Refinement(RefinementFamily):
     def __init__(self, refinement_families):
         self.families = refinement_families
     
-    def extend(self, left_stack = None, right_stack = None):
+    def extention_functions(self, left):
         for family in self.families:
-            left_extend, right_extend, func = family.extend(left_stack, right_stack)
-            if func is not None:
-                return left_extend, right_extend, func
-        return left_stack, right_stack, None
-    
-    
-    
+            funcs = family.extention_functions(left)
+            if funcs is not None:
+                return funcs
+        return None
 
-class IdentityFamily():
-    def __init__(self):
-        pass
-    
-    def extend(self,left, right):
-        return left, right, None
+class IdentityFamily(RefinementFamily):
+    pass
 
 #Highly unoptimised used for testing.
-class SubgroupFamily():
-    def __init__(self,group, key = None):
+class SubgroupFamily(RefinementFamily):
+    def __init__(self, group, key = None):
         self._key_single = key
         self._key_orbit = (lambda x: key(x[0])) if key is not None else None
         self._group = group
@@ -47,14 +44,13 @@ class SubgroupFamily():
                     stack.extend(i, orbit)
         return left, right
     
-    def extend(self,left, right):
-        stack = right if left is None else left
-        base = stack.fix()
+    def extension_functions(self,left):
+        base = left.fix()
         self._group.change_base(base)
         orbits = self._group.orbits(len(base), key = self._key_single)
         orbits.sort(key = self._key_orbit)
-        base_stack = PartitionStack.deep_copy(stack)
-        for i in range(stack.base_size):
+        left_copy = PartitionStack.deep_copy(left)
+        for i in range(left.base_size):
             for orbit in orbits:
                 before = len(stack)
                 self.full_extention(left, right,base_stack,i,orbit)
@@ -66,7 +62,7 @@ class SubgroupFamily():
     
 
 #Highly unoptimised used just for tests:
-class PartitionStabaliserFamily():
+class PartitionStabaliserFamily(RefinementFamily):
     def __init__(self, partition):
         self.partition = partition
     
