@@ -16,7 +16,7 @@ def all_tests_suite(path):
 
 if __name__ == '__main__':
     cur_dir = os.getcwd()
-    relative_path = "\\Mark1"
+    relative_path = "\\Mark2"
     abs_path = cur_dir + relative_path
     sys.path.append(abs_path)
     test_runner = unittest.TextTestRunner(verbosity=2)

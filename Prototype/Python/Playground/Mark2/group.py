@@ -51,11 +51,17 @@ class PermGroup():
         return cls(gens, schreier_sims_info = schreier_sims_tools.schreier_sims_algorithm_fixed_base(gens, base, e))
     
     def change_base(self, new_base):
-        ss_info = schreier_sims_tools.schreier_sims_algorithm_fixed_base(self.generators, new_base, self.identity)
-        self.base = ss_info[0]
-        self.strong_generators = ss_info[1]
-        self.chain_generators = ss_info[2]
-        self.schreier_graphs = ss_info[3]        
+        prefix_size = min(len(self.base), len(new_base))
+        if self.base[:prefix_size] != new_base[:prefix_size]:
+            #the bases diverge at some (possibly redundant) point.
+            #in the future this should be smarter and check for redundant elements
+            #too but on the other hand that can also be taken care of in a
+            #future version of schreier_sims_tools (i.e. provide support for base change)
+            ss_info = schreier_sims_tools.schreier_sims_algorithm_fixed_base(self.generators, new_base, self.identity)
+            self.base = ss_info[0]
+            self.strong_generators = ss_info[1]
+            self.chain_generators = ss_info[2]
+            self.schreier_graphs = ss_info[3]        
 
     def orbits(self, stab_level = 0, key = None):
         orbits = []

@@ -45,6 +45,14 @@ class TestGroup(unittest.TestCase):
         G = PermGroup([a,b])
         G.change_base([1,3])
         self.assertEqual(G.base[:2], [1,3])
+        
+    def test_change_base_redundancy(self):
+        cf = lambda x: Permutation.read_cycle_form(x,6)
+        a = cf([[1,2,3,4],[5,6]])
+        b = cf([[1,2]])
+        G = PermGroup([a,b])
+        G.change_base([5,6,1,2,3,4])
+        self.assertEqual(G.base[:4],[5,6,1,2])
     
     def test_pre_post_element(self):
         cf = Permutation.read_cycle_form

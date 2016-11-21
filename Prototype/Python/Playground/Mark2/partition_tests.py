@@ -61,6 +61,10 @@ class TestPartitionStack(unittest.TestCase):
         self.assertEqual(a[2], Partition([[1,2],[3,5],[4]]))
         self.assertEqual(a[3], Partition([[1],[3,5],[4],[2]]))
         self.assertEqual(a[-1], Partition([[1],[3,5],[4],[2]]))
+        self.assertEqual(a[:4], PartitionStack([0,3,1,2,1],[-1,0,0,1,0]))  
+        self.assertEqual(a[:3], PartitionStack([0,0,1,2,1],[-1,-1,0,1,0]))  
+        self.assertEqual(a[:2], PartitionStack([0,0,1,1,1],[-1,-1,0,0,0]))  
+        self.assertEqual(a[:1], PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]))       
         
     def test_extend(self):
         base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1])
@@ -87,6 +91,25 @@ class TestPartitionStack(unittest.TestCase):
         base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]) 
         base.extend(0, [1,2,3,4,5])
         self.assertEqual(len(base[1]), 1)
+        
+    def test_can_extend(self):
+        base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]) 
+        base.extend(0, [1,3,5])
+        self.assertEqual(base[-1], Partition([[2,4],[1,3,5]]))
+        self.assertFalse(base.can_extend(0,[2,4]))
+        self.assertFalse(base.can_extend(0,[2,4,1,3]))
+        self.assertFalse(base.can_extend(0,[]))
+        self.assertFalse(base.can_extend(0,[5]))
+        self.assertTrue(base.can_extend(0,[1,2,3]))
+        self.assertTrue(base.can_extend(0,[4]))
+    
+    def test_valid_intersection(self):
+        base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]) 
+        base.extend(0, [1,3,5])
+        self.assertEqual(base[-1], Partition([[2,4],[1,3,5]]))
+        self.assertTrue(base._valid_intersection(1,[2,4]) is None)
+        self.assertEqual(base._valid_intersection(1,[1,2,4,5]), [1,5])
+        
 
     def test_discrete(self):
         base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1])
@@ -112,7 +135,23 @@ class TestPartitionStack(unittest.TestCase):
         stack.pop()
         self.assertEqual(stack[-1], Partition([[5,6],[1,9],[2,4],[7],[3,8,10]]))
         stack.pop()
-        self.assertEqual(stack[-1], Partition([[3,5,6,8,10],[1,9],[2,4],[7]]))    
+        self.assertEqual(stack[-1], Partition([[3,5,6,8,10],[1,9],[2,4],[7]]))   
+        stack.pop()
+        self.assertEqual(stack[-1], Partition([[3,5,6,7,8,10],[1,9],[2,4]]))   
+        stack.pop()
+        self.assertEqual(stack[-1], Partition([[3,5,6,8,10,7],[1,9,2,4]]))   
+        stack.pop()
+        self.assertEqual(stack[-1], Partition([[1,2,3,4,5,6,7,8,9,10]]))   
+        
+        raised_error = False
+        try:
+            stack.pop()
+        except IndexError:
+            raised_error = True
+        self.assertTrue(raised_error)
+        
+        self.assertEqual(stack[-1], Partition([[1,2,3,4,5,6,7,8,9,10]]))
+        self.assertEqual(len(stack), 1)
         
 def all_tests_suite():
     suite = unittest.TestSuite()
