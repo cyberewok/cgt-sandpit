@@ -1,9 +1,10 @@
-from leon_modifier import LeonModifier
+from leon_modifier import LeonModifier, ModifierUnion
 
 class LeonLogger(LeonModifier):
     pass
 
-class LeonLoggerUnion(LeonLogger):
+class LeonLoggerUnion(LeonModifier):
+    #Depreciated. Use LeonModifierUnion instead.
     def __init__(self, loggers):
         self.loggers = loggers
         
@@ -45,11 +46,14 @@ class NodeCounter(LeonLogger):
         self.leaf_count += 1
         
 class NodePrinter(LeonLogger):
-    def exclude_backtrack_index(self, left, right, tree, height, *args):
-        print("{}({}): {} -> {}".format(height, len(right) -1, left[height], right[-1]))
+    def exclude_backtrack_index(self, left, right, tree, top_index, *args):
+        print("{}({}): {} -> {}".format(top_index, len(right) -1, left[top_index], right[-1]))
     
     def leaf_pass_backtrack_index(self, left, right, tree, *args):
         print("pass")
     
     def leaf_fail_backtrack_index(self, left, right, tree, *args):
         print("fail")
+        
+    def extension_functions(self, left, *args):
+        print("{}: {} (preprocessing)".format(len(left) -1, left[-1]))

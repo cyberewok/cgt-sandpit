@@ -64,7 +64,33 @@ class TestPartitionStack(unittest.TestCase):
         self.assertEqual(a[:4], PartitionStack([0,3,1,2,1],[-1,0,0,1,0]))  
         self.assertEqual(a[:3], PartitionStack([0,0,1,2,1],[-1,-1,0,1,0]))  
         self.assertEqual(a[:2], PartitionStack([0,0,1,1,1],[-1,-1,0,0,0]))  
-        self.assertEqual(a[:1], PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]))       
+        self.assertEqual(a[:1], PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1])) 
+        self.assertEqual(a[1,1], [3,4,5])     
+        self.assertEqual(a[-1,3], [2]) 
+        
+    def test_multi_extend(self):
+        base1 = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1])
+        base1.extend(0,[3,4,5])
+        base1.extend(1,[4])
+        base1.extend(0,[2])
+        self.assertEqual(base1[-1], Partition([[1],[5,3],[4],[2]]))
+        base2 = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1])
+        func_list = [1, 4, 6, 5, 6]
+        func = lambda x: func_list[x-1]
+        base2.multi_extend(func)
+        self.assertEqual(base2[-1], Partition([[1],[5,3],[4],[2]]))
+        
+    def test_multi_extend_large(self):
+        size = 14
+        base = PartitionStack([0]*size,[-1]*size)
+        base.extend(0,[4,5,6])
+        base.extend(0,[7,8,9])
+        base.extend(0,[10,11,12])
+        self.assertEqual(base[-1], Partition([[1,2,3,13,14],[4,5,6],[7,8,9],[10,11,12]]))
+        func_list = [1, 1, 10, 3, 4, 5, 77,77,77,7,7,1,2,10]
+        func = lambda x: func_list[x-1]
+        base.multi_extend(func)
+        self.assertEqual(base[-1], Partition([[1,2],[4],[7,8,9],[12],[3,14],[13],[6],[5],[10,11]]))    
         
     def test_extend(self):
         base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1])
@@ -87,10 +113,10 @@ class TestPartitionStack(unittest.TestCase):
 
         base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]) 
         base.extend(0, [])
-        self.assertEqual(len(base[1]), 1)
+        self.assertEqual(len(base[-1]), 1)
         base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]) 
         base.extend(0, [1,2,3,4,5])
-        self.assertEqual(len(base[1]), 1)
+        self.assertEqual(len(base[-1]), 1)
         
     def test_can_extend(self):
         base = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1]) 
@@ -146,6 +172,24 @@ class TestPartitionStack(unittest.TestCase):
         raised_error = False
         try:
             stack.pop()
+        except IndexError:
+            raised_error = True
+        self.assertTrue(raised_error)
+        
+        self.assertEqual(stack[-1], Partition([[1,2,3,4,5,6,7,8,9,10]]))
+        self.assertEqual(len(stack), 1)
+        
+    def test_pop_to_height(self):
+        stack = PartitionStack([6,2,4,7,0,0,3,5,1,4],[1,1,0,2,-1,-1,0,4,0,0])
+        self.assertEqual(stack[-1], Partition([[5,6],[9],[2],[7],[3,10],[8],[1],[4]]))  
+        stack.pop_to_height(2)
+        self.assertEqual(stack[-1], Partition([[3,5,6,8,10,7],[1,9,2,4]]))   
+        stack.pop_to_height(1)
+        self.assertEqual(stack[-1], Partition([[1,2,3,4,5,6,7,8,9,10]]))   
+        
+        raised_error = False
+        try:
+            stack.pop_to_height(2)
         except IndexError:
             raised_error = True
         self.assertTrue(raised_error)

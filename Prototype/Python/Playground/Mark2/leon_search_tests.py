@@ -4,7 +4,9 @@ from permutation import Permutation
 from partition import Partition
 from leon_modifier import ModifierUnion, PartitionStackConstraint, MultiBacktracker
 from refinement import RefinementUnion, SubgroupFamily, PartitionStabaliserFamily, IdentityFamily
+from refinement import UnorderedPartitionStabaliserFamily
 from coset_property import CosetPropertyUnion, SubgroupProperty, PartitionStabaliserProperty, IdentityProperty
+from coset_property import UnorderedPartitionStabaliserProperty
 from leon_logger import LeonLoggerUnion, NodeCounter, NodePrinter
 from group import PermGroup
 
@@ -47,7 +49,7 @@ class TestLeonSearch(unittest.TestCase):
         prop = CosetPropertyUnion([IdentityProperty()])
         mods = ModifierUnion([fam, prop])     
         ls = LeonSearch(mods, 4)
-        gens = ls.subgroup()
+        gens = ls.subgroup_generators()
         self.assertEqual(PermGroup(gens).order(), 24)
     
     def test_partition_backtrack_subgroup_one_prop_subgroup(self):
@@ -65,7 +67,7 @@ class TestLeonSearch(unittest.TestCase):
         
         ls = LeonSearch(mods, 5)
         
-        gens = ls.subgroup()
+        gens = ls.subgroup_generators()
         
         found = []
         s5 = PermGroup([cf([[1,2]],5),cf([[1,2,3,4,5]],5)])
@@ -88,7 +90,7 @@ class TestLeonSearch(unittest.TestCase):
         mods = ModifierUnion([fam, prop, con])
         ls = LeonSearch(mods, size)
         
-        gens = ls.subgroup()
+        gens = ls.subgroup_generators()
         
         found = []
         s6 = PermGroup([cf([[1,2]],6),cf([[1,2,3,4,5,6]],6)])
@@ -116,7 +118,7 @@ class TestLeonSearch(unittest.TestCase):
         mods = ModifierUnion([fam, prop, con])
         ls = LeonSearch(mods, size)
         
-        gens = ls.subgroup()
+        gens = ls.subgroup_generators()
         
         found = []
         s7 = PermGroup([cf([[1,2]],7),cf([[1,2,3,4,5,6,7]],7)])
@@ -146,7 +148,7 @@ class TestLeonSearch(unittest.TestCase):
         mods = ModifierUnion([fam, prop, con, multi_back])
         ls = LeonSearch(mods, size)
         
-        gens = ls.subgroup()
+        gens = ls.subgroup_generators()
         cand_G = PermGroup(gens)
         leon_gens = []
         leon_gens.append(cf([[2,12],[4,10],[5,7],[6,8]],13))
@@ -161,7 +163,32 @@ class TestLeonSearch(unittest.TestCase):
         for perm in leon_gens:
             self.assertTrue(perm in G)
             self.assertTrue(perm in cand_G)
-            
+    
+    def test_unprdered_partition_stabaliser_leon_paper(self):
+        size = 21
+        cf  = lambda x:Permutation.read_cycle_form(x,size)
+        a = cf([[1,3,9,16,18,19,13],[2,12,11,17,20,10,14],[4,5,6,21,7,8,15]])
+        b = cf([[2,3],[4,12],[5,7],[8,10],[13,14]])
+        G = PermGroup([a,b])
+        self.assertEqual(len(G),5040)
+        fam_sub = SubgroupFamily(G)
+        prop_sub = SubgroupProperty(G)
+        
+        stab = Partition([[1,2,3],[4,5,6],[7,8,9],[10,11,12],[13,14,15],[16,17,18],[19,20,21]])
+        fam_stab = UnorderedPartitionStabaliserFamily(stab)
+        prop_stab = UnorderedPartitionStabaliserProperty(stab)
+        
+        fam = ModifierUnion([fam_sub,fam_stab])
+        prop = ModifierUnion([prop_sub,prop_stab])
+        con = PartitionStackConstraint()
+        multi_back = MultiBacktracker()
+        mods = ModifierUnion([fam, prop, con, multi_back])
+        ls = LeonSearch(mods, size)
+        
+        G_stab = PermGroup(ls.subgroup_generators())
+        self.assertEqual(len(G_stab), 36)
+        
+        
     def test_multi_backtrack(self):
         cf = Permutation.read_cycle_form
         a = cf([[2,3],[4,6],[5,8],[9,11]], 13)
@@ -182,11 +209,11 @@ class TestLeonSearch(unittest.TestCase):
         multi_back = MultiBacktracker()
         mods = ModifierUnion([fam, prop, con, multi_back, count1])
         ls = LeonSearch(mods, size)
-        gens1 = ls.subgroup()
+        gens1 = ls.subgroup_generators()
         count2 = NodeCounter()       
         mods = ModifierUnion([fam, prop, con, count2])
         ls = LeonSearch(mods, size)
-        gens2 = ls.subgroup()
+        gens2 = ls.subgroup_generators()
         self.assertTrue(count1.node_count < count2.node_count)
         self.assertEqual(PermGroup(gens1).order(), PermGroup(gens2).order())
         

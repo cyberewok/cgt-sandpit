@@ -7,7 +7,7 @@ def all_tests_suite(path):
     suites = []    
     for file in os.listdir(path):
         if not os.path.isfile(os.path.join(path, file)):
-            break
+            continue
         name, extention = os.path.splitext(file)
         if name.endswith("_tests") and extention == ".py":
             test_mod = importlib.import_module(name)

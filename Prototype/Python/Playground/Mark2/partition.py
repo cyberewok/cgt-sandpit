@@ -130,6 +130,9 @@ class PartitionStack():
             if key < 0:
                 key = key + self._height
             
+            if key < 0 or key >= self._height:
+                raise IndexError(key)
+            
             for enum, cell_index in enumerate(self._finals):
                 element = enum + 1
                 cells[cell_index].append(element)
@@ -139,8 +142,30 @@ class PartitionStack():
                 cells[min_split] += cell
         
             return Partition(cells[:key + 1])
+        elif isinstance(key, tuple):
+            #Place holder. Will be something more clever when partition stacks are improved.
+            #Aim is for the whole partition not to be queered when all we want is one cell.
+            return self[key[0]][key[1]]
         else:
             raise TypeError("{} not supported for indexing".format(type(key)))
+        
+    def multi_extend(self, func):
+        split_cell_dicts = [dict() for _ in range(len(self))]
+        for index in range(self.degree):
+            cell_index = self._finals[index]
+            element = index + 1
+            element_value = func(element)
+            if element_value in split_cell_dicts[cell_index]:
+                split_cell_dicts[cell_index][element_value].append(element)
+            else:
+                split_cell_dicts[cell_index][element_value] = [element]
+        for index, split_cell_dict in enumerate(split_cell_dicts):
+            element_values = split_cell_dict.keys()            
+            non_mins = sorted(element_values)[1:]
+            for key in reversed(non_mins):
+                split_cell = split_cell_dict[key]
+                self.extend(index, split_cell, checks = False)
+        return self
     
     def extend(self, index, split_cell, checks = True):
         if checks:
@@ -189,6 +214,13 @@ class PartitionStack():
             cells[parent] += cell
 
         return ret_val
+    
+    def pop_to_height(self, new_height):
+        if new_height > self._height:
+            raise IndexError("The new height {} is greater than {}.".format(new_height, self._height))
+        while self._height > new_height:
+            self.pop()
+        return self
     
     def pop(self):
         top_partition = self[-1]

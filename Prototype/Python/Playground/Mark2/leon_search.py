@@ -29,11 +29,12 @@ class LeonSearch():
         self.right = PartitionStack([0]*size,[-1]*size)
     
     def initialise_r_base(self):
+        self.tree_modifiers.begin_preprocessing()
         r_base = []
         special_cell_sizes = []
         special_lookup = dict()
-        height = 0
-        while height < self.degree -1:
+        top_index = 0
+        while top_index < self.degree -1:
             funcs = self.tree_modifiers.extension_functions(self.left)
             if funcs is not None:
                 left_func, right_func = funcs
@@ -44,17 +45,19 @@ class LeonSearch():
                 r_base.append(None)
                 cell, cell_size, point = self._split_left_cell()
                 special_cell_sizes.append(cell_size)
-                special_lookup[height] = (cell, point)
-            height += 1
+                special_lookup[top_index] = (cell, point)   
+            top_index += 1
+            self.tree_modifiers.height_increase(self.left, None, None, top_index)            
         self._r_base = r_base
         self._special_level_sizes = special_cell_sizes
-        self._special_lookup = special_lookup        
+        self._special_lookup = special_lookup
+        self.tree_modifiers.end_preprocessing()        
     
     def initialise_search_tree(self):
         self._cur_height = 0
         self._cur_position = PositionTracker(self._special_level_sizes)        
         
-    def subgroup(self):
+    def subgroup_generators(self):   
         #Needs to be done in this order.
         self.initialise_partition_stacks()
         self.initialise_r_base()
@@ -62,6 +65,8 @@ class LeonSearch():
                         
         gens = []
         
+
+        self.tree_modifiers.begin_search()             
         while self._cur_height > -1:
             #alt_1 rule out.
             backtrack_index = self.tree_modifiers.exclude_backtrack_index(self.left, self.right, self._cur_position, self._cur_height)
@@ -83,11 +88,13 @@ class LeonSearch():
                 func = self._r_base[self._cur_height]
                 func(self.right)
                 self._cur_height += 1
+                self.tree_modifiers.height_increase(self.left, self.right, self._cur_position, self._cur_height)  
             
             #alt_4 special level.    
             else:
                 self._extend_right()
-            
+        
+        self.tree_modifiers.end_search()         
         return gens
     
     def backtrack(self, new_height = None):
@@ -97,6 +104,7 @@ class LeonSearch():
         if self._cur_height > -1:
             while len(self.right) > self._cur_height + 1:
                 self.right.pop()
+            self.tree_modifiers.height_decrease(self.left, self.right, self._cur_position, self._cur_height)
             self._extend_right()
 
     def _extend_right(self):
@@ -112,9 +120,11 @@ class LeonSearch():
                 c = self.left[i]
                 print("\n{} -> {}\n{}".format(c,b,a))
             #this is where it screws
+            # if this invoked it is likely that backtracking is not going high enough.
             raise IndexError("DIFFERENT")
         self.right.extend(split_index, [split_val])
-        self._cur_height += 1      
+        self._cur_height += 1
+        self.tree_modifiers.height_increase(self.left, self.right, self._cur_position, self._cur_height)  
         
     def _split_left_cell(self):
         #Overwrite this with a clever function that queries the refinements for
