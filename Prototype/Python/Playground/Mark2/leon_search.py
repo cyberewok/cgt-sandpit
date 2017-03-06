@@ -6,7 +6,11 @@ import ordering
 
 def partition_backtrack_subgroup(modifier_family, size):
     ls = LeonSearch(modifier_family, size)
-    return PermGroup(ls.subgroup())
+    return PermGroup(ls.subgroup_generators())
+
+def partition_backtrack_coset_representative(modifier_family, size):
+    ls = LeonSearch(modifier_family, size)
+    return PermGroup(ls.coset_representative())
 
 class LeonSearch():
     def __init__(self, leon_modifiers, degree):
@@ -96,6 +100,46 @@ class LeonSearch():
         
         self.tree_modifiers.end_search()         
         return gens
+    
+    def coset_representative(self):   
+        #Needs to be done in this order.
+        self.initialise_partition_stacks()
+        self.initialise_r_base()
+        self.initialise_search_tree()
+                        
+        sol = None
+
+        self.tree_modifiers.begin_search()             
+        while self._cur_height > -1:
+            #alt_1 rule out.
+            backtrack_index = self.tree_modifiers.exclude_backtrack_index(self.left, self.right, self._cur_position, self._cur_height)
+            if backtrack_index is not None:
+                self.backtrack(backtrack_index)
+            
+            #alt_2 discrete check.
+            elif self.right.discrete():
+                perm = Permutation.read_partitions(self.left[self._cur_height], self.right[self._cur_height])            
+                if not perm.trivial() and self.tree_modifiers.property_check(perm):
+                    sol = perm
+                    backtrack_index = self.tree_modifiers.leaf_pass_backtrack_index(self.left,self.right,self._cur_position)
+                    break            
+                else:
+                    backtrack_index = self.tree_modifiers.leaf_fail_backtrack_index(self.left,self.right,self._cur_position)
+                self.backtrack(backtrack_index)
+            
+            #alt_3 function to extend.
+            elif self._r_base[self._cur_height] is not None:
+                func = self._r_base[self._cur_height]
+                func(self.right)
+                self._cur_height += 1
+                self.tree_modifiers.height_increase(self.left, self.right, self._cur_position, self._cur_height)  
+            
+            #alt_4 special level.    
+            else:
+                self._extend_right()
+        
+        self.tree_modifiers.end_search()         
+        return sol  
     
     def backtrack(self, new_height = None):
         if new_height is None:

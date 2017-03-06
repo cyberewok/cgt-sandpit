@@ -18,7 +18,7 @@ class Partition():
                 if min(unique) != 1:
                     raise ValueError("Can not have elements under one in partition.")
                 if max(unique) > len(unique):
-                    raise ValueError("Partition is missing numbers.")
+                    raise ValueError("Partition is missing numbers.")    
         
     def __lt__(self, other):
         return NotImplemented
@@ -239,9 +239,17 @@ class PartitionStack():
         return self
     
     def discrete(self):
+        #Only works for complete partition stacks.
         #cells = set()
         #for cell_id in self._finals:
         #    cells.add(cell_id)
         #return len(cells) == len(self._finals)
         #return max(self._finals) == len(self._finals) - 1
         return len(self._finals) == self._height
+    
+    def canonical_form(self):
+        ordered_finals = sorted(zip(self._parents, self._finals), key = lambda x:(x[0],-1 * x[1]))
+        con_parents = [parent for parent,_ in ordered_finals]
+        con_finals = [final for _,final in ordered_finals]
+        return PartitionStack(con_finals, con_parents)
+         

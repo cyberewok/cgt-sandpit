@@ -10,7 +10,9 @@ class PermGroup():
             g = self.generators[0]
             self.identity = g**-1 * g
         else:
-            self.identity = Permutation([1])
+            cand_identity = Permutation([1])
+            self.generators = [cand_identity]
+            self.identity = cand_identity
         if schreier_sims_info is None:
             b, strong_gens, chain_gens, sgs = schreier_sims_tools.schreier_sims_algorithm(self.generators, self.identity)
         else:
@@ -19,6 +21,7 @@ class PermGroup():
         self.strong_generators = strong_gens
         self.chain_generators = chain_gens
         self.schreier_graphs = sgs
+        self.degree = len(self.generators[0])
         
     @classmethod
     def min_gen_group(cls, gens, ordering = None):
@@ -49,6 +52,12 @@ class PermGroup():
         else:
             e = Permutation([1])        
         return cls(gens, schreier_sims_info = schreier_sims_tools.schreier_sims_algorithm_fixed_base(gens, base, e))
+    
+    def normaliser(self):
+        return None
+    
+    def canonical_form(self):
+        return None
     
     def change_base(self, new_base):
         prefix_size = min(len(self.base), len(new_base))

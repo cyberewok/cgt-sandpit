@@ -85,6 +85,20 @@ class TestGroup(unittest.TestCase):
         g3 = cf([[1,2],[6,5]])
         G = PermGroup([g1,g2,g3])
         self.assertEqual(G.order(), 360)
+        
+    def test_degree(self):
+        cf = lambda x : Permutation.read_cycle_form(x,6)
+        g1 = cf([[1,4,5,2,3]])
+        g2 = cf([[1,2],[3,4]])
+        g3 = cf([[1,2],[6,5]])
+        G = PermGroup([g1,g2,g3])
+        self.assertEqual(G.degree, 6)
+        cf = lambda x : Permutation.read_cycle_form(x,5)
+        g1 = cf([[1,4,5,2,3]])
+        g2 = cf([[1,2],[3,4]])
+        g3 = cf([[1,2]])
+        G = PermGroup([g1,g2,g3])
+        self.assertEqual(G.degree, 5)            
     
     def test_empty_initialisation(self):
         s1 = Permutation.read_cycle_form([], 3)

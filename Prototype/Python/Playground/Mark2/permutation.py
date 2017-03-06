@@ -5,6 +5,8 @@ class Permutation():
     def __init__(self, nums):
         self._func = tuple(nums)
         self._cycle_form = None
+        self._cycle_lookup = None
+        self._cycle_position = None
     
     @classmethod
     def read_cycle_form(cls, cycle_form, size = None):
@@ -49,7 +51,7 @@ class Permutation():
                 inverse[value - 1] = index + 1
             return Permutation(inverse)
         elif isinstance(num,int) and num>=0:
-            return _fast_expo(num)
+            return self._fast_cycle_expo(num)
         else:
             raise TypeError("Cannot compute exponent for type {} to the power of {}.".format(type(self), num))
     
@@ -84,24 +86,33 @@ class Permutation():
         return hash(self._func)
     
     def trivial(self):
-        return len(self.cycle_notation()) == 0
+        if self._cycle_form is not None:    
+            return len(self._cycle_form) == 0
+    
+    def element_cycle(self, first):
+        cycle = [first]
+        nex = self._image(first)
+        while nex != first:
+            cycle.append(nex)
+            nex = self._image(nex)
+        return cycle
         
     def cycle_notation(self):
         if not self._cycle_form is None:
             return self._cycle_form
         ret = []
-        todo = [1] * (len(self) + 1)
+        todo = [True] * (len(self) + 1)
         for first in range(1, len(todo)):
-            if todo[first] == 0:
+            if not todo[first]:
                 continue
             nex = self._image(first)
             if nex != first:
-                todo[first] = 0
-                todo[nex] = 0
+                todo[first] = False
+                todo[nex] = False
                 cycle = [first, nex]
                 nex = self._image(nex)
                 while nex != first:
-                    todo[nex] = 0
+                    todo[nex] = False
                     cycle.append(nex)
                     nex = self._image(nex)
                 ret.append(cycle)
@@ -111,8 +122,17 @@ class Permutation():
         self._cycle_form = ret
         return ret
     
-    def _fast_expo(num):
-        return NotImplemented
+    def _fast_cycle_expo(self, num):
+        ret = [0] * len(self)
+        visited = set()
+        for ele in range(1, len(self) + 1):
+            if ele not in visited:
+                cyc = self.element_cycle(ele)
+                for cyc_index, cyc_ele in enumerate(cyc):
+                    cyc_image = cyc[(cyc_index + num) % len(cyc)]
+                    ret[cyc_ele - 1] = cyc_image
+                visited.add(ele)
+        return Permutation(ret)
     
     @staticmethod
     def cycle_length_comparison(self, other):

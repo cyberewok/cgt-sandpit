@@ -197,6 +197,17 @@ class TestPartitionStack(unittest.TestCase):
         self.assertEqual(stack[-1], Partition([[1,2,3,4,5,6,7,8,9,10]]))
         self.assertEqual(len(stack), 1)
         
+    def test_canonical_form(self):
+        stack = PartitionStack([5,1,2,0,4,6,3],[1,0,1,-1,2,2,0])
+        self.assertEqual(stack.canonical_form()[-1],Partition([[1],[3],[5],[2],[7],[4],[6]]))
+        stack.pop()
+        self.assertEqual(stack.canonical_form()[-1],Partition([[1],[3],[5,6],[2],[7],[4]]))
+        self.assertEqual(stack.canonical_form()[-2],Partition([[1],[3,4],[5,6],[2],[7]]))
+        self.assertEqual(stack.canonical_form()[-3],Partition([[1],[3,4],[5,6,7],[2]]))
+        self.assertEqual(stack.canonical_form()[-4],Partition([[1,2],[3,4],[5,6,7]]))
+        self.assertEqual(stack.canonical_form()[-5],Partition([[1,2],[3,4,5,6,7]]))
+        self.assertEqual(stack.canonical_form()[-6],Partition([[1,2,3,4,5,6,7]]))
+        
 def all_tests_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestPartition))

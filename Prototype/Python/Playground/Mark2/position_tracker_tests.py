@@ -1,5 +1,5 @@
 import unittest
-from position_tracker import PositionTracker
+from position_tracker import PositionTracker, DynamicPositionTracker
 
 class TestPositionTracker(unittest.TestCase):
     def test_init(self):
@@ -66,11 +66,50 @@ class TestPositionTracker(unittest.TestCase):
 
     def test_str(self):
         pass
-                       
+    
+class TestDynamicPositionTracker(unittest.TestCase):
+    def test_init(self):
+        dpt = DynamicPositionTracker()
+        
+    def test_increment_one_level(self):
+        dpt = DynamicPositionTracker()
+        self.assertEqual(dpt._cur_state, [])
+        dpt.add_level(0)
+        dpt.add_level(4)
+        self.assertEqual(dpt._cur_state, [0,0])
+        dpt.add_level(2)
+        dpt.add_level(1)
+        dpt.add_level(0)
+        dpt.add_level(5)
+        self.assertEqual(dpt._cur_state, [0,0,0,0,0,0])
+        dpt.increment()
+        dpt.increment()
+        dpt.increment()
+        dpt.increment()
+        self.assertEqual(dpt._cur_state, [0,0,0,0,0,4])
+        dpt.increment()
+        self.assertEqual(dpt._cur_state, [0,0,1])
+        dpt.add_level(1)
+        dpt.add_level(1)
+        dpt.add_level(4)
+        self.assertEqual(dpt._cur_state, [0,0,1,0,0,0])
+        dpt.increment()
+        dpt.increment()
+        dpt.increment()
+        self.assertEqual(dpt._cur_state, [0,0,1,0,0,3])
+        dpt.increment()
+        self.assertEqual(dpt._cur_state, [0,1])
+        dpt.increment()
+        self.assertEqual(dpt._cur_state, [0,2])
+        dpt.increment()
+        self.assertEqual(dpt._cur_state, [0,3])
+        self.assertEqual(dpt.increment(), -1)
+        self.assertEqual(dpt._cur_state, [])
 
 def all_tests_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestPositionTracker))
+    suite.addTest(unittest.makeSuite(TestDynamicPositionTracker))
     return suite
 
 if __name__ == '__main__':

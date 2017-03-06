@@ -37,4 +37,35 @@ class PositionTracker():
     
     def __str__(self):
         return str(self._cur_state)
-        
+
+class DynamicPositionTracker(PositionTracker):
+    def __init__(self):
+        super().__init__([])
+    
+    def add_level(self, level_size):
+        self._cur_state.append(0)
+        self.mods.append(max(level_size,1))
+        self._height += 1
+    
+    def pop_level(self):
+        self._cur_state.pop()
+        self.mods.pop()
+        self._height -= 1        
+
+    def increment(self, index = None):
+        if index is None:
+            index = self._height - 1
+        sig = self._height - 1
+        while sig > index:
+            self._cur_state[sig] = 0            
+            sig -= 1
+            self.pop_level()
+        while sig >= 0 and (self._cur_state[sig] + 1) % self.mods[sig] == 0:
+            self._cur_state[sig] = 0
+            sig -= 1
+            self.pop_level()
+        if sig >= 0:
+            self._cur_state[sig] += 1
+        #else:
+           # raise StopIteration("Can not increment further.")
+        return sig

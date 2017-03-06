@@ -45,6 +45,15 @@ class NodeCounter(LeonLogger):
     def leaf_fail_backtrack_index(self, left, right, tree, *args):
         self.leaf_count += 1
         
+    def __str__(self):
+        ret = "NodeCounter object:\n"
+        
+        ret += "  Total nodes visited: {}\n".format(self.node_count)
+        ret += "  Total nummber of leaves: {}\n".format(self.leaf_count)        
+        ret += "  Number of positive leaves: {}\n".format(self.pos_leaf_count)        
+        
+        return ret
+        
 class NodePrinter(LeonLogger):
     def exclude_backtrack_index(self, left, right, tree, top_index, *args):
         print("{}({}): {} -> {}".format(top_index, len(right) -1, left[top_index], right[-1]))

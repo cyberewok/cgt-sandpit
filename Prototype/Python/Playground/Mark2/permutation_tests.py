@@ -75,7 +75,31 @@ class TestPermutation(unittest.TestCase):
         self.assertEqual(a.cycle_notation(), [])
         self.assertEqual(b.cycle_notation(), [[2,3],[4,5,6]])
         self.assertEqual(c.cycle_notation(), [[1,2,3,4,5,6]])
-        self.assertEqual(d.cycle_notation(), [[1,6],[2,4],[3,5]])      
+        self.assertEqual(d.cycle_notation(), [[1,6],[2,4],[3,5]])
+        
+    def test_element_cycle(self):
+        cf = lambda x:Permutation.read_cycle_form(x, 20)
+        a = cf([[1,2,3],[4,5],[7,8,9,10,11,12,13,14,15]])
+        self.assertEqual(a.element_cycle(1), [1,2,3])
+        self.assertEqual(a.element_cycle(2), [2,3,1])
+        self.assertEqual(a.element_cycle(5), [5,4])
+        self.assertEqual(a.element_cycle(6), [6])
+        self.assertEqual(a.element_cycle(13), [13,14,15,7,8,9,10,11,12])
+        self.assertEqual(a.element_cycle(20), [20])
+        a = cf([])
+        self.assertEqual(a.element_cycle(1), [1])
+        self.assertEqual(a.element_cycle(2), [2])
+        
+    
+    def test_power(self):
+        cf = lambda x:Permutation.read_cycle_form(x, 20)
+        e = cf([])
+        a = cf([[1,2,3],[4,5],[7,8,9,10,11,12,13,14,15,16,17,18]])
+        b = cf([[1,2,3],[7,11,15],[8,12,16],[9,13,17],[10,14,18]])
+        self.assertEqual(a**0, e) 
+        self.assertEqual(a**1, a) 
+        self.assertEqual(a**4, b)
+        
     
 def all_tests_suite():
     suite = unittest.TestSuite()

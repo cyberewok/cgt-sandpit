@@ -33,6 +33,14 @@ class PartitionStabaliserProperty(CosetProperty):
     def property_check(self, perm, *args):    
         return self.partition**perm == self.partition
     
+class PartitionImageProperty(CosetProperty):
+    def __init__(self, left_partition, right_partition):
+        self.partition = left_partition
+        self.image = right_partition
+    
+    def property_check(self, perm, *args):    
+        return self.partition**perm == self.image
+    
 class UnorderedPartitionStabaliserProperty(CosetProperty):
     def __init__(self, partition):
         self.partition = partition
@@ -53,8 +61,43 @@ class UnorderedPartitionStabaliserProperty(CosetProperty):
                 if self.rev_lookup[ele]!=org_index:
                     return False
         return True
-                    
-            
+    
+class NormaliserProperty(CosetProperty):
+    def __init__(self, group):
+        self.group = group
+ 
+    def property_check(self, perm, *args):
+        gens = self.group.generators
+        inv_perm = perm**(-1)
+        for gen in gens:
+            cand = inv_perm * gen * perm
+            if cand not in self.group:
+                return False
+        return True
+    
+class SubgroupConjugacyProperty(CosetProperty):
+    def __init__(self, left_group, right_group):
+        self.left = left_group
+        self.right = right_group
+        self.size_check_result = None
+      
+    def size_check(self):
+        if self.size_check_result is None:
+            self.size_check_result = (self.left.order() == self.right.order())
+        return self.size_check_result
+ 
+    def property_check(self, perm, *args):
+        gens = self.left.generators
+        inv_perm = perm**(-1)
+        
+        if not self.size_check():
+            return False
+        
+        for gen in gens:
+            cand = inv_perm * gen * perm
+            if cand not in self.right:
+                return False
+        return True
 
 class PermutationCommuterProperty(CosetProperty):
     def __init__(self, perm):

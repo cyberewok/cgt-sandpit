@@ -4,9 +4,9 @@ from permutation import Permutation
 from partition import Partition
 from leon_modifier import ModifierUnion, PartitionStackConstraint, MultiBacktracker
 from refinement import RefinementUnion, SubgroupFamily, PartitionStabaliserFamily, IdentityFamily
-from refinement import UnorderedPartitionStabaliserFamily
+from refinement import UnorderedPartitionStabaliserFamily, PartitionImageFamily
 from coset_property import CosetPropertyUnion, SubgroupProperty, PartitionStabaliserProperty, IdentityProperty
-from coset_property import UnorderedPartitionStabaliserProperty
+from coset_property import UnorderedPartitionStabaliserProperty, PartitionImageProperty
 from leon_logger import LeonLoggerUnion, NodeCounter, NodePrinter
 from group import PermGroup
 
@@ -164,7 +164,7 @@ class TestLeonSearch(unittest.TestCase):
             self.assertTrue(perm in G)
             self.assertTrue(perm in cand_G)
     
-    def test_unprdered_partition_stabaliser_leon_paper(self):
+    def test_unordered_partition_stabaliser_leon_paper(self):
         size = 21
         cf  = lambda x:Permutation.read_cycle_form(x,size)
         a = cf([[1,3,9,16,18,19,13],[2,12,11,17,20,10,14],[4,5,6,21,7,8,15]])
@@ -217,6 +217,71 @@ class TestLeonSearch(unittest.TestCase):
         self.assertTrue(count1.node_count < count2.node_count)
         self.assertEqual(PermGroup(gens1).order(), PermGroup(gens2).order())
         
+    def test_partition_image(self):
+        cf = Permutation.read_cycle_form
+        part = Partition([[1,3,5],[2,4,6]])
+        image = Partition([[2,3,5],[1,4,6]])
+        fam_part_image = PartitionImageFamily(part, image)        
+        prop_part_image = PartitionImageProperty(part, image)
+        
+        size = 6
+        fam = RefinementUnion([fam_part_image])
+        prop = CosetPropertyUnion([prop_part_image])
+        con = PartitionStackConstraint()
+        mods = ModifierUnion([fam, prop, con])
+        ls = LeonSearch(mods, size)
+        
+        coset_rep = ls.coset_representative()
+        self.assertTrue(prop.property_check(coset_rep))   
+    
+    def test_partition_image_from_subgroup(self):
+        size = 8
+        cf = lambda x: Permutation.read_cycle_form(x, size)
+        
+        a = cf([[1,2,3,4,5,6,7]])
+        b = cf([[6,7,8]])
+        G = PermGroup([a,b])
+        fam_subgroup = SubgroupFamily(G)
+        prop_subgroup = SubgroupProperty(G)  
+        
+        part = Partition([[1,3],[5,7],[2,4,6,8]])
+        image = Partition([[8,4],[5,1],[2,3,6,7]])
+        fam_part_image = PartitionImageFamily(part, image)        
+        prop_part_image = PartitionImageProperty(part, image)
+        
+        fam = RefinementUnion([fam_part_image,fam_subgroup])
+        prop = CosetPropertyUnion([prop_part_image, prop_subgroup])
+        con = PartitionStackConstraint()
+        mods = ModifierUnion([fam, prop, con])
+        ls = LeonSearch(mods, size)
+        
+        coset_rep = ls.coset_representative()
+        self.assertTrue(prop.property_check(coset_rep))
+    
+    def test_subgroup_conjugacy(self):
+        return
+        size = 8
+        cf = lambda x: Permutation.read_cycle_form(x, size)
+        
+        a = cf([[1,2,3,4,5]])
+        b = cf([[4,5,6]])
+        c = cf([[1,2,4,6,7]])
+        d = cf([[6,7,8]])
+        G1 = PermGroup([a,b])
+        G2 = PermGroup([c,d])
+        
+        fam_conj = PartitionImageFamily(part, image)        
+        prop_conj = SungroupConjugacyProperty(part, image)
+        
+        fam = RefinementUnion([fam_part_image,fam_subgroup])
+        prop = CosetPropertyUnion([prop_part_image, prop_subgroup])
+        con = PartitionStackConstraint()
+        mods = ModifierUnion([fam, prop, con])
+        ls = LeonSearch(mods, size)
+        
+        coset_rep = ls.coset_representative()
+        self.assertTrue(prop.property_check(coset_rep))       
+
 def all_tests_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestLeonSearch))
