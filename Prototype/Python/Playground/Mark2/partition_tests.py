@@ -145,6 +145,34 @@ class TestPartitionStack(unittest.TestCase):
         self.assertFalse(base.discrete())
         base.extend(1,[5])
         self.assertTrue(base.discrete())
+    
+    def test_fix_info_heights(self):
+        stack = PartitionStack([0,1,2,3],[-1,0,0,0])
+        self.assertEqual(stack.fix_info(1), ([2,3,4,1],[2,3,4,4]))
+        self.assertEqual(stack.fix_info(2), ([3,4,1],[3,4,4]))
+        self.assertEqual(stack.fix_info(3), ([4,1],[4,4]))
+        self.assertEqual(stack.fix_info(4), ([],[]))
+        self.assertEqual(stack.fix_info(), ([2,3,4,1],[2,3,4,4]))
+        stack = PartitionStack([6,2,4,7,0,0,3,5,1,4],[1,1,0,2,-1,-1,0,4,0,0])
+        self.assertEqual(stack.fix_info(), ([7,8,1,9,4,2],[4,6,7,7,8,8]))
+        self.assertEqual(len(stack), 8)
+    
+
+    def test_fix_info(self):
+        stack = PartitionStack([0,1,2,3],[-1,0,0,0])
+        self.assertEqual(stack.fix_info(), ([2,3,4,1],[2,3,4,4]))
+        stack = PartitionStack([6,2,4,7,0,0,3,5,1,4],[1,1,0,2,-1,-1,0,4,0,0])
+        self.assertEqual(stack.fix_info(), ([7,8,1,9,4,2],[4,6,7,7,8,8]))
+        self.assertEqual(len(stack), 8)
+        
+    
+    def test_fast_fix(self):
+        stack = PartitionStack([6,2,4,7,0,0,3,5,1,4],[1,1,0,2,-1,-1,0,4,0,0])
+        self.assertEqual(stack._fast_fix(), [7,8,1,9,4,2])    
+
+    def test_fix_trivial(self):
+        stack = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1])
+        self.assertEqual(stack.fix(), [])
         
     def test_fix(self):
         stack = PartitionStack([6,2,4,7,0,0,3,5,1,4],[1,1,0,2,-1,-1,0,4,0,0])
@@ -207,6 +235,32 @@ class TestPartitionStack(unittest.TestCase):
         self.assertEqual(stack.canonical_form()[-4],Partition([[1,2],[3,4],[5,6,7]]))
         self.assertEqual(stack.canonical_form()[-5],Partition([[1,2],[3,4,5,6,7]]))
         self.assertEqual(stack.canonical_form()[-6],Partition([[1,2,3,4,5,6,7]]))
+    
+    def test_pow(self):
+        perm = Permutation.read_cycle_form([[1,2],[5,3]], 5)
+        a = PartitionStack([0,0,0,0,0],[-1,-1,-1,-1,-1])
+        b = PartitionStack([0,1,0,1,0],[-1,0,-1,0,-1])
+        c = PartitionStack([2,1,0,1,2],[0,0,-1,0,0])
+        d = PartitionStack([2,3,0,1,2],[0,1,-1,0,0])
+        e = PartitionStack([2,3,0,1,4],[0,1,-1,0,2])
+        for val in [a,b,c,d,e]:
+            self.assertEqual(val[-1] ** perm, (val ** perm)[-1])
+    
+    def test_report_changes(self):
+        a = PartitionStack([2,3,0,1,4],[0,1,-1,0,2])
+        self.assertEqual(a.report_changes(), [[4],[1],[2],[5]])
+        self.assertEqual(a.report_changes(0), [[3],[4],[1],[2],[5]])
+        self.assertEqual(a.report_changes(2), [[1],[2],[5]])
+        self.assertEqual(a.report_changes(3), [[2],[5]])
+        self.assertEqual(a.report_changes(4), [[5]])
+        self.assertEqual(a.report_changes(5), [])
+        self.assertEqual(a.report_changes(6), [])
+        b = PartitionStack([0,1,0,1,0],[-1,0,-1,0,-1])
+        self.assertEqual(b.report_changes(), [[2,4]])
+        self.assertEqual(b.report_changes(0), [[1,3,5],[2,4]])
+        self.assertEqual(b.report_changes(2), [])
+        
+        
         
 def all_tests_suite():
     suite = unittest.TestSuite()

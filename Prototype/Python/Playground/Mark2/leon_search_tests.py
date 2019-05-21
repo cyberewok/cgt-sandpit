@@ -15,7 +15,7 @@ class TestLeonSearch(unittest.TestCase):
         cf = Permutation.read_cycle_form
         a = cf([[2,3],[4,6],[5,8],[9,11]], 13)
         b = cf([[1,2,4,7,9,3,5,6,8,10,11,12,13]], 13)
-        fam_subgroup = SubgroupFamily(PermGroup([a,b])) 
+        fam_subgroup = SubgroupFamily(PermGroup.fixed_base_group([a,b])) 
         
         stab = Partition([[1,3,5,7,9,11],[2,4,6,8,10,12,13]])
         fam_part_stab = PartitionStabaliserFamily(stab)        
@@ -41,7 +41,7 @@ class TestLeonSearch(unittest.TestCase):
         self.assertEqual(special_cells, [1,1,1])
         self.assertEqual(special_vals, [1,3,5])
         f = ls.left.fix()
-        b = fam_subgroup._group.base
+        b = fam_subgroup._group.schreier_structure.base_till_level()
         self.assertEqual(f[:len(b)], b)
     
     def test_tree_traversal(self):
@@ -50,13 +50,13 @@ class TestLeonSearch(unittest.TestCase):
         mods = ModifierUnion([fam, prop])     
         ls = LeonSearch(mods, 4)
         gens = ls.subgroup_generators()
-        self.assertEqual(PermGroup(gens).order(), 24)
+        self.assertEqual(PermGroup.fixed_base_group(gens).order(), 24)
     
     def test_partition_backtrack_subgroup_one_prop_subgroup(self):
         cf = Permutation.read_cycle_form
         a = cf([[1,2,3]], 5)
         b = cf([[1,2],[3,4]], 5)
-        G = PermGroup([a,b])
+        G = PermGroup.fixed_base_group([a,b])
         fam_subgroup = SubgroupFamily(G)
         prop_subgroup = SubgroupProperty(G)
         
@@ -70,12 +70,12 @@ class TestLeonSearch(unittest.TestCase):
         gens = ls.subgroup_generators()
         
         found = []
-        s5 = PermGroup([cf([[1,2]],5),cf([[1,2,3,4,5]],5)])
+        s5 = PermGroup.fixed_base_group([cf([[1,2]],5),cf([[1,2,3,4,5]],5)])
         for ele in s5._list_elements():
             if prop.property_check(ele):
                 found.append(ele)
 
-        self.assertEqual(sorted(PermGroup(gens)._list_elements()), sorted(found))
+        self.assertEqual(sorted(PermGroup.fixed_base_group(gens)._list_elements()), sorted(found))
         
     def test_partition_backtrack_subgroup_one_prop_stab(self):
         cf = Permutation.read_cycle_form
@@ -93,18 +93,18 @@ class TestLeonSearch(unittest.TestCase):
         gens = ls.subgroup_generators()
         
         found = []
-        s6 = PermGroup([cf([[1,2]],6),cf([[1,2,3,4,5,6]],6)])
+        s6 = PermGroup.fixed_base_group([cf([[1,2]],6),cf([[1,2,3,4,5,6]],6)])
         for ele in s6._list_elements():
             if prop.property_check(ele):
                 found.append(ele)
 
-        self.assertEqual(sorted(PermGroup(gens)._list_elements()), sorted(found))
+        self.assertEqual(sorted(PermGroup.fixed_base_group(gens)._list_elements()), sorted(found))
     
     def test_partition_backtrack_subgroup_two_prop_subgroup_stab(self):        
         cf = Permutation.read_cycle_form
         a = cf([[3,2,6]], 7)
         b = cf([[3,2],[6,7]], 7)
-        G = PermGroup([a,b])
+        G = PermGroup.fixed_base_group([a,b])
         fam_subgroup = SubgroupFamily(G)
         prop_subgroup = SubgroupProperty(G)
         stab = Partition([[1,3,5,7],[2,4,6]])
@@ -121,18 +121,18 @@ class TestLeonSearch(unittest.TestCase):
         gens = ls.subgroup_generators()
         
         found = []
-        s7 = PermGroup([cf([[1,2]],7),cf([[1,2,3,4,5,6,7]],7)])
+        s7 = PermGroup.fixed_base_group([cf([[1,2]],7),cf([[1,2,3,4,5,6,7]],7)])
         for ele in s7._list_elements():
             if prop.property_check(ele):
                 found.append(ele)
 
-        self.assertEqual(len(PermGroup(gens)), len(found))     
+        self.assertEqual(len(PermGroup.fixed_base_group(gens)), len(found))     
         
     def test_partition_backtrack_subgroup_leon_paper(self):
         cf = Permutation.read_cycle_form
         a = cf([[2,3],[4,6],[5,8],[9,11]], 13)
         b = cf([[1,2,4,7,9,3,5,6,8,10,11,12,13]], 13)
-        G = PermGroup([a,b])
+        G = PermGroup.fixed_base_group([a,b])
         fam_subgroup = SubgroupFamily(G)
         prop_subgroup = SubgroupProperty(G)
         
@@ -149,12 +149,12 @@ class TestLeonSearch(unittest.TestCase):
         ls = LeonSearch(mods, size)
         
         gens = ls.subgroup_generators()
-        cand_G = PermGroup(gens)
+        cand_G = PermGroup.fixed_base_group(gens)
         leon_gens = []
         leon_gens.append(cf([[2,12],[4,10],[5,7],[6,8]],13))
         leon_gens.append(cf([[2,8],[3,5],[4,6],[10,12]],13))
         leon_gens.append(cf([[1,9],[2,4],[6,8],[10,12]],13))
-        leon_G = PermGroup(leon_gens)
+        leon_G = PermGroup.fixed_base_group(leon_gens)
         third_source = []
         for ele in G._list_elements():
             if prop.property_check(ele):
@@ -169,7 +169,7 @@ class TestLeonSearch(unittest.TestCase):
         cf  = lambda x:Permutation.read_cycle_form(x,size)
         a = cf([[1,3,9,16,18,19,13],[2,12,11,17,20,10,14],[4,5,6,21,7,8,15]])
         b = cf([[2,3],[4,12],[5,7],[8,10],[13,14]])
-        G = PermGroup([a,b])
+        G = PermGroup.fixed_base_group([a,b])
         self.assertEqual(len(G),5040)
         fam_sub = SubgroupFamily(G)
         prop_sub = SubgroupProperty(G)
@@ -185,7 +185,7 @@ class TestLeonSearch(unittest.TestCase):
         mods = ModifierUnion([fam, prop, con, multi_back])
         ls = LeonSearch(mods, size)
         
-        G_stab = PermGroup(ls.subgroup_generators())
+        G_stab = PermGroup.fixed_base_group(ls.subgroup_generators())
         self.assertEqual(len(G_stab), 36)
         
         
@@ -193,7 +193,7 @@ class TestLeonSearch(unittest.TestCase):
         cf = Permutation.read_cycle_form
         a = cf([[2,3],[4,6],[5,8],[9,11]], 13)
         b = cf([[1,2,4,7,9,3,5,6,8,10,11,12,13]], 13)
-        G = PermGroup([a,b])
+        G = PermGroup.fixed_base_group([a,b])
         fam_subgroup = SubgroupFamily(G)
         prop_subgroup = SubgroupProperty(G)
         
@@ -215,7 +215,7 @@ class TestLeonSearch(unittest.TestCase):
         ls = LeonSearch(mods, size)
         gens2 = ls.subgroup_generators()
         self.assertTrue(count1.node_count < count2.node_count)
-        self.assertEqual(PermGroup(gens1).order(), PermGroup(gens2).order())
+        self.assertEqual(PermGroup.fixed_base_group(gens1).order(), PermGroup.fixed_base_group(gens2).order())
         
     def test_partition_image(self):
         cf = Permutation.read_cycle_form
@@ -240,7 +240,7 @@ class TestLeonSearch(unittest.TestCase):
         
         a = cf([[1,2,3,4,5,6,7]])
         b = cf([[6,7,8]])
-        G = PermGroup([a,b])
+        G = PermGroup.fixed_base_group([a,b])
         fam_subgroup = SubgroupFamily(G)
         prop_subgroup = SubgroupProperty(G)  
         
@@ -267,8 +267,8 @@ class TestLeonSearch(unittest.TestCase):
         b = cf([[4,5,6]])
         c = cf([[1,2,4,6,7]])
         d = cf([[6,7,8]])
-        G1 = PermGroup([a,b])
-        G2 = PermGroup([c,d])
+        G1 = PermGroup.fixed_base_group([a,b])
+        G2 = PermGroup.fixed_base_group([c,d])
         
         fam_conj = PartitionImageFamily(part, image)        
         prop_conj = SungroupConjugacyProperty(part, image)

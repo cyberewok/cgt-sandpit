@@ -1,137 +1,206 @@
 from permutation import Permutation
 from ordering import ordering_to_key
+from schreier_structure import SchreierStructure
 
-def _schreier_graph(num, edges, identity):
-    """Calculates the schreier graph for the group defined by the generator list
-    edges with respect to subgroup stabalised by the base set element num.
-    Also needs a copy of the identity element."""
-    #Num is the fixed element of the base set that G acts on.
-    #Edges are the generators for previous subgroup.
-    schreier_graph = [None for _ in range(len(identity))]
-    schreier_graph[num - 1] = identity
-    return _schreier_graph_expand(schreier_graph, edges, 0)
+def get_schreier_structure(gens, order = None, base = None, level = None):
+    return get_schreier_structure_naive(gens, base)
 
-def _schreier_graph_expand(schreier_graph, edges, new_edge_index):
-    """Given a schreier graph accurate for the generators upto the 
-    new_edge_index this function extends the schreier graph. Note the 
-    schreier_graph parameter is modified in place AND returned."""
-    #New edge index is the index from which all generators after that index have not yet been considered, i.e., are new.
-    #Inverses are needed to calculate images as the path to the identity has to be in terms of generators (to save space). 
-    edges_inv = [g**-1 for g in edges]
-    #The orbit of the fixed set element (note we dont need to know this element explicitly).
-    old_frontier = [i + 1 for i, g in enumerate(schreier_graph) if g is not None]
-    new_frontier = []
-    cur_index = 0
-    for num in old_frontier:
-        #Try each of the new edges to get a new point from the set.
-        for g, g_inv in zip(edges[new_edge_index:], edges_inv[new_edge_index:]):
-            image = num**g_inv
-            if schreier_graph[image - 1] is None:
-                #Found a new point (we havent been to this entry in the graph before)!
-                schreier_graph[image - 1] = g
-                new_frontier.append(image)
-    while len(new_frontier) > 0:
-        #While there are still points to explore.
-        cur_num = new_frontier.pop()
-        for g, g_inv in zip(edges, edges_inv):
-            #Try all the edges.
-            image = cur_num**g_inv
-            if schreier_graph[image - 1] is None:
-                #New point found
-                schreier_graph[image - 1] = g
-                new_frontier.append(image)
-    return schreier_graph    
+def get_schreier_structure_naive(gens, base = None):
+    ssg = SchreierSimsGenerator(gens, base = base)
+    ret = ssg.complete()
+    return ret
 
-def _coset_rep_inverses(schreier_graph, identity):
-    """Constructs the coset representative inverses for each coset
-    reachable in the schreier_graph. Needs the identity."""
-    coset_reps = [None for _ in schreier_graph]
-    coset_reps[schreier_graph.index(identity)] = identity
-    for index in [i for i, v in enumerate(schreier_graph) if v is not None]:
-        #Iterates over all indices of reachable cosets in the schreier_graph.
-        indices_to_coset = [index] #the path back to known cosets.
-        while coset_reps[indices_to_coset[-1]] is None:
-            #Populates the indices of a path back to a known coset.
-            cur_index = indices_to_coset[-1]
-            cur_g = schreier_graph[cur_index]
-            cur_num = (cur_index + 1)
-            image = cur_num**cur_g
-            image_index = image - 1
-            indices_to_coset.append(image_index)
-        #The last index is a known coset so we do not need to know the generator there.
-        prev_index = indices_to_coset.pop()
-        while len(indices_to_coset) > 0:
-            #Pop the last index and update the list of known cosets
-            cur_index = indices_to_coset.pop()
-            coset_reps[cur_index] = schreier_graph[cur_index] * coset_reps[prev_index]
-            prev_index = cur_index
-    #return the list coset representative inverses found.
-    return coset_reps    
+class DirectSchreierSimsGenerator():
+    def __init__(self, generators, base = None, order = None):
+        if len(generators) == 0:
+            raise ValueError("Must define atleast one generator.")
+        self.generators = generators
+        self.degree = len(generators[0])
+        self.base_candidate = base
+        if self.base_candidate is None:
+            self.base_candidate = []
+        self.depth = 0
+        self.structure = SchreierStructure(self.degree)
+    
+    def complete(self):
+        pass
+        
+        
 
-def _coset_reps(schreier_graph, identity):
-    """Constructs a list of coset leaders for the given schreier graph."""
-    coset_reps = []
-    inv = _coset_rep_inverses(schreier_graph, identity)
-    for g in inv:
-        if g is not None:
-            coset_reps.append(g**-1)
-        else:
-            coset_reps.append(None)
-    return coset_reps
+class NaiveSchreierSimsGenerator():
+    def __init__(self, generators, base = None):
+        if len(generators) == 0:
+            raise ValueError("Must define atleast one generator.")
+        self.generators = generators
+        self.degree = len(generators[0])
+        self.base_candidate = base
+        if self.base_candidate is None:
+            self.base_candidate = []
+        self.depth = 0
+        self.structure = SchreierStructure(self.degree)
+        
+    def complete(self):
+        self._drip_feed_level(self.generators, 0)
+        return self.structure
+    
+    def _schreier_generators(self, gens, level):
+        ret = []
+        unique = set()
+        coset_reps = self.structure.transversal(level)
+        for rep in (x for x in coset_reps if x is not None):
+            for gen in gens:
+                cand = self.structure.sift_on_level(rep * gen, level)
+                if cand not in unique and not cand.trivial():
+                    ret.append(cand)
+                    unique.add(cand)
+        return ret
 
-def _coset_rep_inverse(image, schreier_graph, identity):
-    """Returns the coset representative inverse for coset associated with 
-    the image reachable in the schreier_graph."""
-    g = identity
-    cur_index = image - 1
-    cur_num = image
-    cur_g = schreier_graph[cur_index]
-    while cur_g is not None and cur_g != identity:
-        #Follow the chain to the identity and multiply by the schreier graph element.
-        g = g * cur_g
-        image = cur_num**cur_g                    
-        cur_index = image - 1
-        cur_num = image
-        cur_g = schreier_graph[cur_index]
-    if cur_g is None:
-        return None
-    return g
+    def _drip_feed_level(self, gens, level):
+        if self.depth == level:
+            self.add_level(gens[0])
+        for gen in gens:
+            self.structure.extend_level(gen, level, force_update = True)
+        schreier_gens = self._schreier_generators(gens, level)
+        if len(schreier_gens) > 0:
+            self._drip_feed_level(schreier_gens, level + 1)
+            
+    def add_level(self, cand):
+        new_base_ele = self.extend_base(cand)
+        self.structure.add_level(new_base_ele)
+        self.depth += 1
+        
+    def extend_base(self, non_id):
+        index = len(self.structure.base)
+        if index < len(self.base_candidate):
+            new_element = self.base_candidate[index]
+            return new_element
+        elif not non_id.trivial():
+            first_non_fixed = next(num for num in range(1, len(non_id) + 1) if num**non_id != num)
+            return first_non_fixed
+        return list(set(list(range(1, len(non_id)))) - set(self.structure.base))[0]    
+    
 
-def _schreier_generators(num, coset_reps, edges, identity):
-    """Returns the schreier generators for the subgroup that stabilises num."""
-    schreier_gens = []
-    unique_check = {identity}
-    for r in [g for g in coset_reps if g is not None]:
-        for s in edges:
-            rs = r * s
-            rs_coset_index = (num**rs) - 1
-            rs_coset_rep = coset_reps[rs_coset_index]
-            gen = rs * rs_coset_rep**-1
-            if gen not in unique_check:    
-                schreier_gens.append(gen)
-                unique_check.add(gen)
-    return schreier_gens
+class SchreierSimsGenerator():
+    def __init__(self, generators, base = None):
+        if len(generators) == 0:
+            raise ValueError("Must define atleast one generator.")
+        self.generators = generators
+        self.degree = len(generators[0])
+        self.base_candidate = base
+        self.chain_gens = []
+        self.chain_orbits = []
+        if self.base_candidate is None:
+            self.base_candidate = []
+        self.depth = 0
+        self.structure = SchreierStructure(self.degree)
+        
+    def complete(self):
+        self._drip_feed_level(self.generators, 0)
+        return self.structure
+    
+    def single_schreier_generators(self, gen, level, added):
+        ret = []
+        unique = set()
+        coset_reps = self.structure.transversal(level)
+        for rep in (x for x in coset_reps if x is not None):
+            cand = self.structure.sift_on_level(rep * gen, level)
+            if cand not in unique and not cand.trivial():
+                ret.append(cand)
+                unique.add(cand)
+        for rep in (x for x in (coset_reps[ele - 1] for ele in added) if x is not None):
+            for old_gen in self.structure.level_generators(level):
+                cand = self.structure.sift_on_level(rep * old_gen, level)
+                if cand not in unique and not cand.trivial():
+                    ret.append(cand)
+                    unique.add(cand)
+        return ret
 
-def membership_siftee(candidate, schreier_graphs, base, identity):
-    """Returns the sifftee when chaining using the schreier graphs and the given base."""
-    for num, schreier_graph in zip(base, schreier_graphs):
-        image = num**candidate
-        #We used to construct all coset inverses this is bad we only need one.
-        #image_index = image - 1
-        #coset_inverses = _coset_rep_inverses(schreier_graph)
-        #coset_rep = coset_inverses[image_index]
-        coset_rep = _coset_rep_inverse(image, schreier_graph, identity)
-        if coset_rep is None:
-            return candidate
-        else:
-            candidate = candidate * coset_rep
-    return candidate
+    def _drip_feed_level(self, gens, level):
+        if self.depth == level:
+            self.add_level(gens[0])
+        for gen in gens:
+            cand = self.structure.siftee(gen, level)
+            if cand is None or not cand.trivial():
+                self.structure.extend_level(cand, level, force_update = True, improve_tree = False)
+                orb = self.structure.stabaliser_orbit(level)
+                added = orb - self.chain_orbits[level]
+                self.chain_orbits[level] = set(orb)
+                schreier_gens = self.single_schreier_generators(cand, level, added)
+                if len(schreier_gens) > 0:
+                    self._drip_feed_level(schreier_gens, level + 1)
+            
+    def add_level(self, cand):
+        self.chain_orbits.append(set())
+        new_base_ele = self.extend_base(cand)
+        self.structure.add_level(new_base_ele)
+        self.depth += 1
+        
+    def extend_base(self, non_id):
+        index = len(self.structure.base)
+        if index < len(self.base_candidate):
+            new_element = self.base_candidate[index]
+            return new_element
+        elif not non_id.trivial():
+            first_non_fixed = next(num for num in range(1, len(non_id) + 1) if num**non_id != num)
+            return first_non_fixed
+        return list(set(list(range(1, len(non_id)))) - set(self.structure.base))[0]
 
-def group_size(schreier_graphs):
-    total = 1
-    for num_cosets in [len([g for g in sg if g is not None]) for sg in schreier_graphs]:
-        total *= num_cosets
-    return total  
+class BaseChanger():
+    def __init__(self, group):
+        self.group = group
+        self.structure = group.schreier_structure
+        if self.structure is None:
+            self.structure = get_schreier_structure(group.generators)
+        self.cached_order = self.structure.order()
+        self.cur_base = []
+        
+    #def pop(self, base_size = None):
+        #if base_size is None:
+            #base_size = len(self.structure.base) - 1
+        
+    
+    def whole_common_prefix(self, a, b):
+        for index in range(min(len(a), len(b))):
+            if a[index] != b[index]:
+                return True
+        return False
+    
+    def change_base(self, new_base):
+        
+        need_change = False
+        act_base = self.structure.base_till_level()
+        
+        if self.whole_common_prefix(act_base, new_base):
+            need_change = True
+        
+        self.cur_base = new_base
+        if need_change:
+            self.structure = get_schreier_structure(self.group.generators, base = new_base, order = self.structure.order())
+        return self.structure
+    
+    def orbit(self, ele):
+        return self.structure.orbit(ele, level = len(self.cur_base))
+        
+    def orbits(self, level = None):
+        if level is None:
+            level = len(self.cur_base)
+        return self.structure.orbits(level = level)
+    
+    def discrete(self):
+        cand = 1
+        for level in range(min(len(self.cur_base), len(self.structure.base_till_level()))):
+            cand *= len(self.structure.stabaliser_orbit(level))
+        return cand == self.cached_order
+    
+    def stabaliser_orbits(self):
+        ret = []
+        for level in range(min(len(self.cur_base), len(self.structure.base_till_level()))):
+            ret.append(self.structure.stabaliser_orbit(level))
+        return ret
+    
+    def element_from_image(self, image):
+        return self.structure.element_from_image(image)
+    
 
 def membership_index(candidate, schreier_graphs, base, identity, key = None):
     if key is None:
@@ -199,258 +268,3 @@ def base_image_member(base, image, schreier_graphs, identity):
             candidate = candidate * coset_rep
             image = [ele**coset_rep for ele in image]
     return candidate**-1
-
-def naive_schreier_sims_algorithm(generators, identity):
-    """Test algorithm for understanding."""
-    chain_generators = [generators]
-    schreier_graphs = []
-    try:
-        gen = next(gen for gen in chain_generators[0] if gen != identity)
-    except(StopIteration):
-        return [],[],[],[]
-    first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**gen != num)
-    base = [first_non_fixed]
-    finished = False
-    while not finished:
-        num = base[-1]
-        gens = chain_generators[-1]
-        schreier_graph = _schreier_graph(num, gens, identity)
-        coset_reps = _coset_reps(schreier_graph, identity)
-        schreier_gens = _schreier_generators(num, coset_reps, gens, identity)
-        chain_generators.append(schreier_gens) #make next level.
-        schreier_graphs.append(schreier_graph)
-        
-        if len(schreier_gens) > 0:
-            gen = schreier_gens[0]
-            first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**gen != num)
-            base.append(first_non_fixed)
-        else:
-            finished = True
-        
-    strong_gens = []
-    unique_check = set()
-    for gens in chain_generators:
-        for gen in gens:
-            if gen not in unique_check:
-                strong_gens.append(gen)
-                unique_check.add(gen)
-    
-    return base, strong_gens, chain_generators, schreier_graphs
-
-def cleaner_schreier_sims_algorithm(generators, identity):
-    """Returns a base, a strong generating list, a list of lists of the 
-    subgroup chain generators and the schreier trees for the given generators."""
-    chain_generators = [generators]
-    chain_schreier_generators = [None]
-    schreier_graphs = [None]
-    try:
-        gen = next(gen for gen in chain_generators[0] if gen != identity)
-    except(StopIteration):
-        return [],[],[],[]
-    first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**gen != num)
-    base = [first_non_fixed]
-    level = 0
-    while level > -1:
-        schreier_gens = chain_schreier_generators[level]
-        if schreier_gens is None: #first time at this level
-            num = base[level]
-            gens = chain_generators[level]
-            #unnecciary? if schreier_graph is None: #populate for first time
-            schreier_graph = _schreier_graph(num, gens, identity)
-            schreier_graphs[level] = schreier_graph
-            coset_reps = _coset_reps(schreier_graph, identity)
-            # need in reverse order as they will be popped off. Not strictly nec.
-            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens, identity)))
-            chain_schreier_generators[level] = schreier_gens
-            
-            chain_generators.append([]) #make next level.
-            chain_schreier_generators.append(None)
-            schreier_graphs.append([])
-        
-        elif len(schreier_gens) == 0: #have previously exhausted this level
-            num = base[level]
-            schreier_graph = schreier_graphs[level]
-            gens = chain_generators[level]
-            _schreier_graph_expand(schreier_graph, gens, len(gens) - 1)
-            coset_reps = _coset_reps(schreier_graph, identity)
-            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens[-1:], identity)))
-            chain_schreier_generators[level] = schreier_gens
-        
-        membership_pass = True #have we passed all membership tests?            
-        
-        while membership_pass and len(schreier_gens) > 0:
-            gen = schreier_gens.pop()
-            schreier_graphs_membership = schreier_graphs[level+1:]
-            base_membership = base[level+1:] 
-            siftee = membership_siftee(gen, schreier_graphs_membership, base_membership, identity)
-            if siftee != identity:
-                membership_pass = False
-                chain_generators[level+1].append(siftee)
-                if len(base) == level + 1: #also need to add to base.
-                    first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**siftee != num)
-                    base.append(first_non_fixed)                        
-        
-        if membership_pass: #exhausted this level so check for next schreier gen of prior level.
-            level = level - 1
-            
-        else: #needed to add to the generators so need to check down recursively.
-            level = level + 1
-    
-    strong_gens = []
-    unique_check = set()
-    for gens in chain_generators:
-        for gen in gens:
-            if gen not in unique_check:
-                strong_gens.append(gen)
-                unique_check.add(gen)
-    
-    return base, strong_gens, chain_generators, schreier_graphs[:-1]
-
-def schreier_sims_algorithm(generators, identity):
-    """Returns a base, a strong generating list, a list of lists of the 
-    subgroup chain generators and the schreier trees for the given generators."""
-    chain_generators = [generators]
-    chain_schreier_generators = [None]
-    schreier_graphs = [None]
-    try:
-        gen = next(gen for gen in chain_generators[0] if gen != identity)
-    except(StopIteration):
-        return [],[],[],[]
-    first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**gen != num)
-    base = [first_non_fixed]
-    level = 0
-    while level > -1:
-        schreier_gens = chain_schreier_generators[level]
-        if schreier_gens is None: #first time at this level
-            num = base[level]
-            gens = chain_generators[level]
-            #unnecciary? if schreier_graph is None: #populate for first time
-            schreier_graph = _schreier_graph(num, gens, identity)
-            schreier_graphs[level] = schreier_graph
-            coset_reps = _coset_reps(schreier_graph, identity)
-            # need in reverse order as they will be popped off. Not strictly nec.
-            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens, identity)))
-            chain_schreier_generators[level] = schreier_gens
-            
-            chain_generators.append([]) #make next level.
-            chain_schreier_generators.append(None)
-            schreier_graphs.append([])
-        
-        elif len(schreier_gens) == 0: #have previously exhausted this level
-            num = base[level]
-            schreier_graph = schreier_graphs[level]
-            gens = chain_generators[level]
-            _schreier_graph_expand(schreier_graph, gens, len(gens) - 1)
-            coset_reps = _coset_reps(schreier_graph, identity)
-            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens[-1:], identity)))
-            chain_schreier_generators[level] = schreier_gens
-        
-        membership_pass = True #have we passed all membership tests?            
-        
-        while membership_pass and len(schreier_gens) > 0:
-            gen = schreier_gens.pop()
-            schreier_graphs_membership = schreier_graphs[level+1:]
-            base_membership = base[level+1:] 
-            siftee = membership_siftee(gen, schreier_graphs_membership, base_membership, identity)
-            if siftee != identity:
-                membership_pass = False
-                chain_generators[level+1].append(siftee)
-                if len(base) == level + 1: #also need to add to base.
-                    first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**siftee != num)
-                    base.append(first_non_fixed)                        
-        
-        if membership_pass: #exhausted this level so check for next schreier gen of prior level.
-            level = level - 1
-            
-        else: #needed to add to the generators so need to check down recursively.
-            level = level + 1
-    
-    strong_gens = []
-    unique_check = set()
-    for gens in chain_generators:
-        for gen in gens:
-            if gen not in unique_check:
-                strong_gens.append(gen)
-                unique_check.add(gen)
-    
-    return base, strong_gens, chain_generators, schreier_graphs[:-1]
-
-def schreier_sims_algorithm_fixed_base(generators, base_cand, identity):
-    """Returns a base, a strong generating list, a list of lists of the 
-    subgroup chain generators and the schreier trees for the given generators.
-    The base will be a prefix of base_cand or will be an extention of base 
-    cand."""
-    chain_generators = [generators]
-    chain_schreier_generators = [None]
-    schreier_graphs = [None]
-    try:
-        gen = next(gen for gen in chain_generators[0] if gen != identity)
-    except(StopIteration):
-        return [],[],[],[]
-    base = []
-    base.append(base_point(base, base_cand, gen, identity))
-    level = 0
-    while level > -1:
-        schreier_gens = chain_schreier_generators[level]
-        if schreier_gens is None: #first time at this level
-            num = base[level]
-            gens = chain_generators[level]
-            #unnecciary? if schreier_graph is None: #populate for first time
-            schreier_graph = _schreier_graph(num, gens, identity)
-            schreier_graphs[level] = schreier_graph
-            coset_reps = _coset_reps(schreier_graph, identity)
-            # need in reverse order as they will be popped off. Not strictly nec.
-            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens, identity)))
-            chain_schreier_generators[level] = schreier_gens
-            
-            chain_generators.append([]) #make next level.
-            chain_schreier_generators.append(None)
-            schreier_graphs.append([])
-        
-        elif len(schreier_gens) == 0: #have previously exhausted this level
-            num = base[level]
-            schreier_graph = schreier_graphs[level]
-            gens = chain_generators[level]
-            _schreier_graph_expand(schreier_graph, gens, len(gens) - 1)
-            coset_reps = _coset_reps(schreier_graph, identity)
-            schreier_gens = list(reversed(_schreier_generators(num, coset_reps, gens[-1:], identity)))
-            chain_schreier_generators[level] = schreier_gens
-        
-        membership_pass = True #have we passed all membership tests?            
-        
-        while membership_pass and len(schreier_gens) > 0:
-            gen = schreier_gens.pop()
-            schreier_graphs_membership = schreier_graphs[level+1:]
-            base_membership = base[level+1:] 
-            siftee = membership_siftee(gen, schreier_graphs_membership, base_membership, identity)
-            if siftee != identity:
-                membership_pass = False
-                chain_generators[level+1].append(siftee)
-                if len(base) == level + 1: #also need to add to base.
-                    first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**siftee != num)                
-                    base.append(base_point(base, base_cand, siftee, identity))                        
-        
-        if membership_pass: #exhausted this level so check for next schreier gen of prior level.
-            level = level - 1
-            
-        else: #needed to add to the generators so need to check down recursively.
-            level = level + 1
-    
-    strong_gens = []
-    unique_check = set()
-    for gens in chain_generators:
-        for gen in gens:
-            if gen not in unique_check:
-                strong_gens.append(gen)
-                unique_check.add(gen)
-    
-    return base, strong_gens, chain_generators, schreier_graphs[:-1]
-
-def base_point(base, base_cand, siftee, identity):
-    index = len(base)
-    if index < len(base_cand):
-        return base_cand[index]
-    else:
-        first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**siftee != num)
-        return first_non_fixed
-        

@@ -17,7 +17,7 @@ def vis_klien4():
 def vis_cyclic6():
     b = Permutation.read_cycle_form([[1,2,3,4,5,6]],6)
     G = PermGroup([b])
-    oG = OrbitGraph(G,(2,5))
+    oG = OrbitGraph(G,(1,2))
     draw_orbit_graph(oG)
     
 def vis_S3_cross_Z3():
@@ -32,4 +32,4 @@ def vis_S3_cross_Z3():
 
 #vis_klien4()
 #vis_cyclic6()
-#vis_S3_cross_Z3()
+vis_S3_cross_Z3()

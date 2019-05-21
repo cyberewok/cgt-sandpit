@@ -2,18 +2,9 @@ import unittest
 from group import PermGroup as Group
 from ordering import ordering_to_perm_key, ordering_to_key
 from permutation import Permutation
-from schreier_structure import RandomSchreierGenerator
 from schreier_structure import SchreierStructure
-from schreier_structure import ProductReplacer
-
-
-class TestProductReplacer(unittest.TestCase):
-    def test_init(self):
-        degree = 10
-        cf = lambda x:Permutation.read_cycle_form(x, degree)
-        a = cf([[1,2,3],[4,5],[8,9]])
-        b = cf([[3,4],[5,8],[9,10,2]])
-        pr = ProductReplacer([a,b])
+from schreier_sims_randomised import RandomSchreierGenerator
+from schreier_sims import get_schreier_structure
 
 class TestSchreierStructure(unittest.TestCase):
     def sift_test(self, to_check, to_pass, structure):
@@ -21,12 +12,19 @@ class TestSchreierStructure(unittest.TestCase):
         to_pass = set(to_pass)
         for g in to_check:
             if g in to_pass:
-                siftee = structure.sift(g)
+                siftee = structure.siftee(g)
                 self.assertTrue(siftee.trivial())
             else:
-                siftee = structure.sift(g)
+                siftee = structure.siftee(g)
                 if siftee is not None:    
-                    self.assertFalse(siftee.trivial())                
+                    self.assertFalse(siftee.trivial())
+                    
+    def image_works_test(self, image, struct):
+        ele = struct.element_from_image(image)
+        self.assertTrue(ele is not None)
+        for index, image_cand in enumerate(image):
+            self.assertEqual(struct.base_at_level(index)**ele, image_cand)
+        self.assertTrue(ele in struct)      
                 
     def test_init(self):
         ss = SchreierStructure(10)
@@ -159,103 +157,15 @@ class TestSchreierStructure(unittest.TestCase):
         rg = RandomSchreierGenerator([a,b], group_order = 360)
         rg.complete_till_level(degree)        
         self.sift_test(S6, A5, rg.structure)
-
-class TestRandomSchreierGenerator(unittest.TestCase):
     
-    def test_complete_till_level(self):
-        degree = 4
-        cf = lambda x:Permutation.read_cycle_form(x, degree)
-        s1 = cf([[1,2,3,4]])
-        s2 = cf([[1,2]])
-        gens = [s1,s2]
-        rg = RandomSchreierGenerator(gens)
-        rg.complete_till_level(4)
-        self.assertEqual(rg.structure.order(), 24)
-        #print(rg.structure.schreier_graphs)
-        #self.assertEqual(s_g, [s2,identity,s1,s2])    
-    
-    def test_sift_till_level(self):
-        degree = 4
-        cf = lambda x:Permutation.read_cycle_form(x, degree)
-        s1 = cf([[1,2]])
-        s2 = cf([[1,2,3,4]])
-        gens = [s1,s2]
-        rg = RandomSchreierGenerator(gens)
-        rg.sift_till_level(s1,4)
-        rg.sift_till_level(cf([]),4)
-        #self.assertEqual(s_g, [s2,identity,s1,s2])
-    
-class TestSchreierStructureLegacy(unittest.TestCase):
-    def coset_construction_from_schreier_tree_test(self, gens):
-        identity = gens[0] * gens[0]**-1
-        base, strong_gens, chain_generators, schreier_graphs = schreier_sims_algorithm(gens, identity)
-        no_errors = True
-        for s_g in schreier_graphs[0:-1]:
-            coset_inverses_1 = _coset_rep_inverses(s_g, identity)
-            coset_inverses_2 = [_coset_rep_inverse(i + 1, s_g, identity) for i in range(len(identity))]
-            if coset_inverses_1 != coset_inverses_2:
-                no_errors = False
-                print(coset_inverses_1)
-                print(coset_inverses_2)
-        self.assertTrue(no_errors)
-        
-    def test_coset_constructions(self):    
-        s1 = Permutation.read_cycle_form([[2,3,5,7]], 8)
-        s2 = Permutation.read_cycle_form([[1,2,4,8]], 8)
-        self.coset_construction_from_schreier_tree_test([s1, s2])   
-             
-    def test_schreier_graph_construction(self):
-        s1 = Permutation.read_cycle_form([[2,3]], 4)
-        s2 = Permutation.read_cycle_form([[1,2,4]], 4)
-        gens = [s1,s2]
-        identity = Permutation([1,2,3,4])
-        s_g = _schreier_graph(2, gens, identity)
-        self.assertEqual(s_g, [s2,identity,s1,s2])
-        
-    def test_coset_reps(self):
-        s1 = Permutation.read_cycle_form([[2,3]], 4)
-        s2 = Permutation.read_cycle_form([[1,2,4]], 4)
-        gens = [s1,s2]
-        identity = Permutation([1,2,3,4])
-        s_g = _schreier_graph(2, gens, identity)
-        cosets = _coset_reps(s_g, identity)
-        self.assertEqual(cosets, [Permutation.read_cycle_form([[1,4,2]], 4),identity,s1,s2])
-
-    def test_schreier_generators(self):
-        s1 = Permutation.read_cycle_form([[2,3]], 4)
-        s2 = Permutation.read_cycle_form([[1,2,4]], 4)
-        gens = [s1,s2]
-        identity = Permutation([1,2,3,4])
-        s_g = _schreier_graph(2, gens, identity)
-        cosets = _coset_reps(s_g, identity)
-        s_gen = _schreier_generators(2, cosets, gens, identity)
-        gen_1 = Permutation.read_cycle_form([[3,4]], 4)
-        gen_2 = Permutation.read_cycle_form([[1,3,4]], 4)
-        gen_3 = Permutation.read_cycle_form([[1,3]], 4)
-        self.assertEqual(s_gen, [gen_1, gen_2, gen_3])
-        
-    def test_coset_rep_inverses(self):
-        identity = Permutation([1,2,3,4])
-        b = Permutation([3,2,1,4])
-        s_g = [identity,None,b,None]
-        self.assertEqual(s_g, _coset_rep_inverses(s_g, identity))
-    
-    def test_base_image_member(self):
-        cf  =Permutation.read_cycle_form
-        a = cf([[1, 2]],4)
-        b = cf([[1,2,3,4]], 4)
-        c = cf([[2,3]], 4)
-        e = cf([],4)
-        base, gens, c_gens, graphs = schreier_sims_algorithm_fixed_base([a,b],[1,2,3,4], e)
-        self.assertEqual(base_image_member(base,[1,3,2],graphs,e), c)
-    
-    def test_group_size(self):
-        cf  = Permutation.read_cycle_form
-        a = cf([[1, 2, 3,4,5]],5)
-        b = cf([[1,2,3]], 5)
-        e = cf([],5)
-        base, _, _, graphs = schreier_sims_algorithm_fixed_base([a,b],[1,2,3,4,5], e)
-        self.assertEqual(group_size(graphs),60)
+    #def test_base_image_member(self):
+        #cf  =Permutation.read_cycle_form
+        #a = cf([[1, 2]],4)
+        #b = cf([[1,2,3,4]], 4)
+        #c = cf([[2,3]], 4)
+        #e = cf([],4)
+        #base, gens, c_gens, graphs = schreier_sims_algorithm_fixed_base([a,b],[1,2,3,4], e)
+        #self.assertEqual(base_image_member(base,[1,3,2],graphs,e), c)
     
     def test_element_at_index(self):
         cf  = Permutation.read_cycle_form
@@ -263,15 +173,16 @@ class TestSchreierStructureLegacy(unittest.TestCase):
         b = cf([[1,2,3]], 5)
         e = cf([],5)
         ordering = [3,5,2,1,4]
-        base, _, _, graphs = schreier_sims_algorithm_fixed_base([a,b], ordering, e)
         full_group = []
         ele_key = ordering_to_key(ordering)        
         perm_key = ordering_to_perm_key(ordering)
-        for index in range(group_size(graphs)):
-            full_group.append(element_at_index(base, graphs, index, e, key=ele_key))
-        ordered_group = sorted(full_group, key = perm_key)
+        struct = get_schreier_structure([a,b], base = ordering)
+        for index in range(struct.order()):
+            full_group.append(struct.element_at_index(index, key=ele_key))
+        ordered_group = sorted(list(full_group), key = perm_key)
         #for x,y in zip(full_group, ordered_group):
             #print("{!s:<20} {!s:<20}".format(x,y))
+        self.assertEqual(len(set(full_group)), struct.order())
         self.assertEqual(full_group, ordered_group)
         
     
@@ -281,106 +192,90 @@ class TestSchreierStructureLegacy(unittest.TestCase):
         b = cf([[1,2,3]], 5)
         c = cf([[1,2]], 5)
         e = cf([],5)
-        ordering = [3,5,2,1,4]
-        base, _, _, graphs = schreier_sims_algorithm_fixed_base([a,b], ordering, e)
-        S5_base, _, _, S5_graphs = schreier_sims_algorithm_fixed_base([a,c], ordering, e)
+        ordering = [3,5,2,1,4]#[1,2,3,4,5]#
+        struct = get_schreier_structure([a,b], base = ordering)
+        S5_struct = get_schreier_structure([a,c], base = ordering)
         real_group = []
         S5_group = []
         
         ele_key = ordering_to_key(ordering)        
         perm_key = ordering_to_perm_key(ordering)
         
-        for index in range(group_size(S5_graphs)):
-            S5_group.append(element_at_index(S5_base, S5_graphs, index, e, key=ele_key))
+        for index in range(S5_struct.order()):
+            to_add = S5_struct.element_at_index(index, key=ele_key)
+            index_check = S5_struct.membership_index(to_add, key=ele_key)
+            self.assertEqual(index, index_check)
+            #print("{}: {} {}".format(to_add, index, index_check))
+            S5_group.append(to_add)
          
-        self.assertEquals(len(S5_group), 120)
+        self.assertEquals(len(set(S5_group)), 120)
         self.assertEquals(S5_group, sorted(S5_group, key = perm_key))
         
-        
-        for index in range(group_size(graphs)):
-            real_group.append(element_at_index(base, graphs, index, e, key=ele_key))
+        prev = None
+        for index in range(struct.order()):
+            to_add = struct.element_at_index(index, key=ele_key)
+            index_check = struct.membership_index(to_add, key=ele_key)
+            self.assertEqual(index, index_check)
+            real_group.append(to_add)
+            if prev is not None:
+                index_beg = S5_struct.membership_index(prev, key=ele_key)
+                index_end = S5_struct.membership_index(to_add, key=ele_key)
+                self.assertTrue(index_beg < index_end)
+                
+            prev = to_add
+            
              
-        self.assertEquals(len(real_group), 60)
+        self.assertEquals(len(set(real_group)), 60)
         self.assertEquals(real_group, sorted(real_group, key = perm_key))
         
         for ele in S5_group:
-            cand_index = membership_index(ele, graphs, base, e, key = ele_key)
-            if cand_index > -1:
+            cand_index = struct.membership_index(ele, key=ele_key)
+            if ele in struct:
                 #print("{}: {} {}?".format(cand_index, ele, real_group[cand_index]))
                 self.assertTrue(ele in real_group)
                 self.assertEquals(real_group[cand_index], ele)
             else:
+                a_ele = struct.element_at_index(cand_index, key = ele_key)
+                c_ele = a_ele
+                pre_ele = a_ele
+                if cand_index + 1 < struct.order():
+                    c_ele = struct.element_at_index(cand_index + 1, key = ele_key)
+                if cand_index > 0:
+                    pre_ele = struct.element_at_index(cand_index - 1, key = ele_key)
+                
+                pre = S5_struct.membership_index(pre_ele, key=ele_key)
+                a = S5_struct.membership_index(a_ele, key=ele_key)
+                b = S5_struct.membership_index(ele, key=ele_key)
+                c = S5_struct.membership_index(c_ele, key=ele_key)
+                
                 self.assertFalse(ele in real_group)
+                #print("{} {} {}: {}".format(pre_ele, a_ele, c_ele, ele))
+                #print("{} {} {}: {}".format(pre,a,c,b))
+                self.assertTrue(pre <= b <= c)
+                self.assertTrue(pre <= a <= c )
         
-        
+    def test_element_from_image(self):
+        cf  = lambda x:Permutation.read_cycle_form(x, 5)
+        a = cf([[1, 2, 3,4,5]])
+        b = cf([[1,2,3]])
+        c = cf([[1,2]])
+        e = cf([])
+        cand_base = [3,5,2,1,4]
+        cyc_struct = get_schreier_structure([a], base = cand_base)
+        self.image_works_test([4], cyc_struct)
+        A5_struct = get_schreier_structure([a,b], base = cand_base)
+        self.image_works_test([1,2,3], A5_struct)
+        self.image_works_test([3,5,1], A5_struct)
+        #print(A5_struct.element_from_image([3,5,1]))
+        S5_struct = get_schreier_structure([a,c], base = cand_base)
+        self.image_works_test([1,2,3], S5_struct)
+        self.image_works_test([3,4,5,1], S5_struct)
+            
     
-    def test_schreier_sims_algorithm(self):
-        cf  =Permutation.read_cycle_form
-        a = cf([[1, 2]],4)
-        b = cf([[1,2,3,4]], 4)
-        c = cf([[2, 3, 4]], 4)
-        d = cf([[2, 3]], 4)
-        e = cf([], 4)
-        info = schreier_sims_algorithm([], e)
-        self.assertEquals(info, ([],[],[],[]))
-        info = schreier_sims_algorithm([e,e,e,e], e)
-        self.assertEquals(info, ([],[],[],[]))
-        base, gens, c_gens, graphs = schreier_sims_algorithm([a,b], e)
-        self.assertEquals(len(base), 3)
-        
-    def test_naive_schreier_sims_algorithm(self):
-        cf  =Permutation.read_cycle_form
-        a = cf([[1, 2]],4)
-        b = cf([[1,2,3,4]], 4)
-        c = cf([[2, 3, 4]], 4)
-        d = cf([[2, 3],[1,4]], 4)
-        e = cf([], 4)
-        info = naive_schreier_sims_algorithm([], e)
-        self.assertEquals(info, ([],[],[],[]))
-        info = naive_schreier_sims_algorithm([e,e,e,e], e)
-        self.assertEquals(info, ([],[],[],[]))
-        base, gens, c_gens, graphs = naive_schreier_sims_algorithm([c,d], e)
-        self.assertEquals(len(base), 2)
-        siftee = membership_siftee(a, graphs, base, e)
-        self.assertNotEqual(siftee, e)
-        siftee = membership_siftee(cf([[1,2,3]],4), graphs, base, e)
-        self.assertEqual(siftee, e)        
-        
-        
-    def test_schreier_sims_algorithm_fixed_base(self):
-        cf  =Permutation.read_cycle_form
-        a = cf([[1, 2]],4)
-        b = cf([[1,2,3,4]], 4)
-        c = cf([[2, 3, 4]], 4)
-        d = cf([[2, 3], [1,4]], 4)
-        e = cf([], 4)
-        info = schreier_sims_algorithm_fixed_base([], [1,2,3,4], e)
-        self.assertEquals(info, ([],[],[],[]))
-        info = schreier_sims_algorithm_fixed_base([e,e,e,e], [1,2,3,4], e)
-        self.assertEquals(info, ([],[],[],[]))
-        base, gens, c_gens, graphs = schreier_sims_algorithm_fixed_base([a,b], [4,3], e)
-        self.assertEquals(len(base), 3)
-        self.assertEquals(base[:2], [4,3])
-        base, gens, c_gens, graphs = schreier_sims_algorithm_fixed_base([c,d], [4,1], e)
-        self.assertEquals(base[:2], [4,1])
-        siftee = membership_siftee(a, graphs, base, e)
-        self.assertNotEqual(siftee, e)
-        siftee = membership_siftee(cf([[1,2,3]],4), graphs, base, e)
-        self.assertEqual(siftee, e)
-        base, gens, c_gens, graphs = schreier_sims_algorithm_fixed_base([c], [1,2,3,4], e)
-        self.assertEquals(base[:2], [1,2])
-        siftee = membership_siftee(a, graphs, base, e)
-        self.assertNotEqual(siftee, e)
-        siftee = membership_siftee(cf([[2,4,3]],4), graphs, base, e)
-        self.assertEqual(siftee, e)        
-
-
 
 def all_tests_suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(TestSchreierStructure))
-    suite.addTest(unittest.makeSuite(TestRandomSchreierGenerator))
-    suite.addTest(unittest.makeSuite(TestProductReplacer))
+    suite.addTest(unittest.makeSuite(TestzSchreierStructure))
     return suite
 
 if __name__ == '__main__':

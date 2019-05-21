@@ -18,19 +18,14 @@ class Partition():
                 if min(unique) != 1:
                     raise ValueError("Can not have elements under one in partition.")
                 if max(unique) > len(unique):
-                    raise ValueError("Partition is missing numbers.")    
+                    raise ValueError("Partition is missing numbers.")
         
     def __lt__(self, other):
         return NotImplemented
     
     def __pow__(self, perm):
         if isinstance(perm, Permutation):
-            new_cells = []
-            for cell in self._cells:
-                new_cell = []
-                for num in cell:
-                    new_cell.append(num ** perm)
-                new_cells.append(new_cell)
+            new_cells = [[num ** perm for num in cell] for cell in self._cells]
             return Partition(new_cells)
         raise TypeError("Cannot find image for types {} and {}.".format(type(self), type(perm))) 
     
@@ -74,8 +69,8 @@ class PartitionStack():
     def __init__(self, final_indices, split_indices):
         self._height = max(final_indices) + 1
         self._finals = final_indices #the cell num for each index in the top partition.
-        self._parents = split_indices #the max height at which this element was put at end.
-        self.degree = len(self._parents)
+        self._parents = split_indices #the most immediate parent cell.
+        self.degree = len(self._parents) #this is needed
     
     @classmethod
     def deep_copy(cls, stack):
@@ -148,8 +143,19 @@ class PartitionStack():
             return self[key[0]][key[1]]
         else:
             raise TypeError("{} not supported for indexing".format(type(key)))
+    
+    def __pow__(self, perm):
+        
+        if isinstance(perm, Permutation):        
+            degree = len(self._parents)
+            lookup = {(val + 1) : (val + 1) ** perm for val in range(degree)}
+            new_fins = [self._finals[lookup[val + 1] - 1] for val in range(degree)]
+            new_pars = [self._parents[lookup[val + 1] - 1] for val in range(degree)]
+            return PartitionStack(new_fins, new_pars)
+        raise TypeError("Cannot find image for types {} and {}.".format(type(self), type(perm))) 
         
     def multi_extend(self, func):
+        changed = False
         split_cell_dicts = [dict() for _ in range(len(self))]
         for index in range(self.degree):
             cell_index = self._finals[index]
@@ -163,9 +169,10 @@ class PartitionStack():
             element_values = split_cell_dict.keys()            
             non_mins = sorted(element_values)[1:]
             for key in reversed(non_mins):
+                changed = True
                 split_cell = split_cell_dict[key]
                 self.extend(index, split_cell, checks = False)
-        return self
+        return changed
     
     def extend(self, index, split_cell, checks = True):
         if checks:
@@ -184,6 +191,10 @@ class PartitionStack():
     
     def can_extend(self, index, split_cell):
         return self._valid_intersection(index, split_cell) is not None
+    
+    def cell_of(self, element, level = None):
+        if level is None:
+            return self._finals[element - 1]
         
     def _valid_intersection(self, index, split_cell):
         new_cell = [e for e in split_cell if self._finals[e - 1] == index]
@@ -191,29 +202,94 @@ class PartitionStack():
         too_big = len(new_cell) == len([1 for x in self._finals if x==index])
         if empty or too_big:
             return None
-        return new_cell  
+        return new_cell
     
-    def fix(self):
+    def _fast_fix(self):
         ret_val = []
-        cells = [[] for _ in range(self._height)]
+        cell_reps = [(False, None) for _ in range(self._height)]
         
         for enum, cell_index in enumerate(self._finals):
             element = enum + 1
-            cells[cell_index].append(element)
+            if cell_reps[cell_index][1] is None:    
+                cell_reps[cell_index] = [True, element]
+            else:
+                cell_reps[cell_index][0] = False
 
-        for cell in reversed(cells):
-            if len(cell) == 1:
-                element = cell[0]
-                parent_cell = cells[self._parents[element - 1]]
-                if len(parent_cell) == 1:
-                    ret_val = cell + parent_cell + ret_val
-                else:
-                    ret_val = cell + ret_val
-                    
-            parent = self._parents[cell[0] - 1]
-            cells[parent] += cell
-
+        for sing, cell_rep in reversed(cell_reps):
+            parent_index = self._parents[cell_rep - 1]
+            if parent_index < 0:
+                parent_sing = False                
+            else:
+                parent_sing, parent_rep = cell_reps[parent_index]
+            if parent_sing:
+                ret_val.append(parent_rep)
+                cell_reps[parent_index][0] = False
+            if sing:
+                ret_val.append(cell_rep)
+        
+        ret_val.reverse()
         return ret_val
+    
+    def _fast_fix_with_info(self, start_height):
+        ret_val = []
+        ret_heights = []
+        cell_reps = [(False, None) for _ in range(self._height)]
+        
+        for enum, cell_index in enumerate(self._finals):
+            element = enum + 1
+            if cell_reps[cell_index][1] is None:    
+                cell_reps[cell_index] = [True, element]
+            else:
+                cell_reps[cell_index][0] = False
+
+        for sing, cell_rep in reversed(cell_reps):
+            if self._finals[cell_rep-1] + 1 <= start_height:
+                break
+            parent_index = self._parents[cell_rep - 1]
+            if parent_index < 0:
+                parent_sing = False                
+            else:
+                parent_sing, parent_rep = cell_reps[parent_index]
+            if parent_sing:
+                ret_val.append(parent_rep)
+                ret_heights.append(self._finals[cell_rep - 1] + 1)
+                cell_reps[parent_index][0] = False
+            if sing:
+                ret_heights.append(self._finals[cell_rep - 1] + 1)
+                ret_val.append(cell_rep)
+        
+        ret_val.reverse()
+        ret_heights.reverse()
+        return ret_val, ret_heights
+    
+    def fix_info(self, start_height = 0):
+        #returns fix and the heights the 
+        #elements were introduced in only gives
+        #the fix after the start_height
+        return self._fast_fix_with_info(start_height)
+    
+    def fix(self):
+        return self._fast_fix()
+        #ret_val = []
+        #cells = [[] for _ in range(self._height)]
+        
+        #for enum, cell_index in enumerate(self._finals):
+            #element = enum + 1
+            #cells[cell_index].append(element)
+
+        #for cell in reversed(cells):
+            #if len(cell) == 1:
+                #element = cell[0]
+                #parent_cell = cells[self._parents[element - 1]]
+                #if len(parent_cell) == 1:
+                    #ret_val = cell + parent_cell + ret_val
+                #else:
+                    #ret_val = cell + ret_val
+                    
+            #parent = self._parents[cell[0] - 1]
+            #cells[parent] += cell
+
+        #return ret_val
     
     def pop_to_height(self, new_height):
         if new_height > self._height:
@@ -252,4 +328,22 @@ class PartitionStack():
         con_parents = [parent for parent,_ in ordered_finals]
         con_finals = [final for _,final in ordered_finals]
         return PartitionStack(con_finals, con_parents)
-         
+    
+    def signature(self):
+        ret = []
+        for part in self:
+            end = part[-1]
+            split = min((self._parents[val - 1] for val in end))
+            ret.append((len(end), split))
+        return ret
+    
+    def report_changes(self, prev_height = 1):
+        ret = []
+        for element, cell_index in enumerate(self._finals):
+            element += 1
+            if cell_index >= prev_height:
+                insert_index = cell_index - prev_height 
+                while len(ret) <= insert_index:
+                    ret.append([])
+                ret[insert_index].append(element)
+        return ret

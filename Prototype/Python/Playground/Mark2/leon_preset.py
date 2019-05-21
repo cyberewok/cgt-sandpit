@@ -30,7 +30,7 @@ def symmetric_group(degree):
 
     gens = subgroup_search(mods, size)
 
-    ret = PermGroup(gens)
+    ret = PermGroup.fixed_base_group(gens)
     return ret
 
 def symmetric_normaliser(group, extra_mods = None):
@@ -49,5 +49,5 @@ def symmetric_normaliser(group, extra_mods = None):
 
     gens = subgroup_search(mods, size)
 
-    norm_G = PermGroup(gens)
+    norm_G = PermGroup.fixed_base_group(gens)
     return norm_G

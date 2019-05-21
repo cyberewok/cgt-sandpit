@@ -1,27 +1,15 @@
 from permutation import Permutation
-import schreier_sims as schreier_sims_tools
 import random
 from ordering import ordering_to_key
+from schreier_sims import get_schreier_structure, BaseChanger
 
 class PermGroup():
-    def __init__(self, generators, schreier_sims_info = None):
-        self.generators = generators        
-        if len(generators) > 0:
-            g = self.generators[0]
-            self.identity = g**-1 * g
-        else:
-            cand_identity = Permutation([1])
-            self.generators = [cand_identity]
-            self.identity = cand_identity
-        if schreier_sims_info is None:
-            b, strong_gens, chain_gens, sgs = schreier_sims_tools.schreier_sims_algorithm(self.generators, self.identity)
-        else:
-            b, strong_gens, chain_gens, sgs = schreier_sims_info
-        self.base = b
-        self.strong_generators = strong_gens
-        self.chain_generators = chain_gens
-        self.schreier_graphs = sgs
-        self.degree = len(self.generators[0])
+    def __init__(self, generators, schreier_structure = None):
+        self.generators = generators #needed feild
+        g = self.generators[0]        
+        self.degree = len(g) #Needed feild
+        self.identity = g**-1 * g #Needed feild
+        self.schreier_structure = schreier_structure
         
     @classmethod
     def min_gen_group(cls, gens, ordering = None):
@@ -42,16 +30,26 @@ class PermGroup():
     
     @classmethod
     def all_elements_group(cls, elements, base = None):
-        min_gen_group(elements, base)
+        #Currently unsupported. Should work by making a random element generator
+        #from elements and using that in a random schreier sims construction.
+        return None
+        #min_gen_group(elements, base)
 
     @classmethod
-    def fixed_base_group(cls, gens, base):
-        if len(gens) > 0:
-            g = gens[0]
-            e = g**-1 * g
-        else:
-            e = Permutation([1])        
-        return cls(gens, schreier_sims_info = schreier_sims_tools.schreier_sims_algorithm_fixed_base(gens, base, e))
+    def fixed_base_group(cls, gens, base = None, order = None):
+        if base is None:
+            base = []
+        structure = get_schreier_structure(gens, base = base, order = order)        
+        return cls(gens, schreier_structure = structure)
+    
+    @classmethod
+    def fixed_order_group(cls, gens, order):
+        structure = get_schreier_structure(gens, order = order)
+        return cls(gens, schreier_structure = structure)
+
+    @classmethod
+    def deep_copy(cls, group):
+        return cls.fixed_base_group(group.generators)  
     
     def normaliser(self):
         return None
@@ -59,67 +57,40 @@ class PermGroup():
     def canonical_form(self):
         return None
     
+    def canonical_generators(self):
+        new_structure = get_schreier_structure(self.generators, base = list(range(1, self.degree + 1)), order = self.order())
+        return list(new_structure.canonical_generators())
+    
     def change_base(self, new_base):
-        prefix_size = min(len(self.base), len(new_base))
-        if self.base[:prefix_size] != new_base[:prefix_size]:
-            #the bases diverge at some (possibly redundant) point.
-            #in the future this should be smarter and check for redundant elements
-            #too but on the other hand that can also be taken care of in a
-            #future version of schreier_sims_tools (i.e. provide support for base change)
-            ss_info = schreier_sims_tools.schreier_sims_algorithm_fixed_base(self.generators, new_base, self.identity)
-            self.base = ss_info[0]
-            self.strong_generators = ss_info[1]
-            self.chain_generators = ss_info[2]
-            self.schreier_graphs = ss_info[3]        
+        # this is currently crazy inefficient
+        bc = BaseChanger(self)
+        self.schreier_structure = bc.change_base(new_base)
 
-    def orbits(self, stab_level = 0, key = None):
-        orbits = []
-        visited = set()
-        for ele in range(1, len(self.identity) + 1):
-            if ele not in visited:
-                orb = self.orbit(ele, stab_level, key = key)
-                orbits.append(orb)
-                visited.update(orb)
-        return orbits
+    def orbits(self, stab_level = 0, key = None, in_order = False):
+        return self.schreier_structure.orbits(level = stab_level, key = key, in_order = in_order)
+        #orbits = []
+        #visited = [None] * self.degree
+        #for ele in range(1, self.degree + 1):
+            #if visited[ele - 1] is None:
+                #orb = self.orbit(ele, stab_level, key = key)
+                #orbits.append(orb)
+                #for orb_ele in orb:    
+                    #visited[orb_ele - 1] = True
+        #return orbits
 
-    def orbit(self, num, stab_level = 0, key = None):
-        if stab_level >= len(self.base):
-            return [num]
-        if self.schreier_graphs[stab_level][num - 1] is not None:
-            orb = self._orbit_schreier(stab_level)
-        else:
-            orb = self._orbit_computation(num, stab_level)
-        return sorted(orb, key = key)    
-    
-    def _orbit_schreier(self, stab_level):
-        return [index + 1 for index, ele in enumerate(self.schreier_graphs[stab_level]) if ele is not None]
-    
-    def _orbit_computation(self, num, stab_level):
-        gens = self.chain_generators[stab_level]
-        frontier = [num]
-        orb = set(frontier)
-        while len(frontier) > 0:
-            next_frontier = []
-            for gen in gens:
-                for num in frontier:
-                    cand = num**gen
-                    if cand not in orb:
-                        orb.add(cand)
-                        next_frontier.append(cand)
-            frontier = next_frontier
-        return list(orb)
+    def orbit(self, num, stab_level = 0, key = None, in_order = False):
+        return self.schreier_structure.orbit(num, level = stab_level, key = key, in_order = in_order)
     
     def base_image_member(self, image):
-        return schreier_sims_tools.base_image_member(self.base, image, self.schreier_graphs, self.identity)
+        return self.schreier_structure.element_from_image(image)
     
     def base_prefix_image_member(self, image):
-        limit = len(image)
-        return schreier_sims_tools.base_image_member(self.base[:limit], image, self.schreier_graphs[:limit], self.identity)
+        return self.schreier_structure.element_from_image(image)
     
     def prefix_postfix_image_member(self, pre, post, allow_base_change = False):
         lookup = {ele:index for index, ele in enumerate(pre)}
         image = []
-        for ele in self.base:
+        for ele in self.schreier_structure.base_till_level():
             if ele in lookup:
                 image.append(post[lookup[ele]])
             else:
@@ -130,17 +101,34 @@ class PermGroup():
                     break
                 
         limit = len(image)
-        return schreier_sims_tools.base_image_member(self.base[:limit], image, self.schreier_graphs[:limit], self.identity)    
+        return self.base_prefix_image_member(image) 
+    
     
     #len has to return an int so this will not work for large groups unfortunately.
+    #order method is more robust for this reason.
     def __len__(self):
         return self.order()
+
+    def __eq__(self, other):
+        if self.degree != other.degree:
+            return False
+        
+        if self.order() != other.order():
+            return False
+            
+        gens = self.generators
+        
+        for gen in gens:
+            if gen not in other:
+                return False
+        
+        return True
     
     def order(self):
-        return schreier_sims_tools.group_size(self.schreier_graphs)
+        return self.schreier_structure.order()
         
     def __contains__(self, key):
-        return self.identity == schreier_sims_tools.membership_siftee(key, self.schreier_graphs, self.base, self.identity)
+        return key in self.schreier_structure
     
     def __str__(self):
         ret = "PermGroup object:\n"
@@ -149,7 +137,7 @@ class PermGroup():
         for g in self.generators:
             ret += "    {}\n".format(str(g)[1:-1])
             
-        ret += "  Base for the group:\n    {}\n".format(self.base)            
+        ret += "  Base for the group:\n    {}\n".format(self.schreier_structure.base_till_level())            
         
         return ret
 
@@ -164,6 +152,27 @@ class PermGroup():
         #this is for left cosets.
         if isinstance(other, Permutation):
             return PermCoset(self, None, other)
+        else:
+            return NotImplemented
+    
+    def __pow__(self, exp, mod = None):
+        #This is inefficient and would be better to carry over the relabled 
+        #schreier structure and relable instead of multiply.
+        conj_gens = []
+        for gen in self.generators:
+            cand = exp ** -1 * gen * exp
+            conj_gens.append(cand)
+        #conj_structure = None
+        #if self.schreier_structure is not None:
+            #conj_structure = self.schreier_structure ** exp
+        #return PermGroup(conj_gens, self.schreier_structure ** exp)
+        return PermGroup.fixed_base_group(conj_gens, list(range(1, self.degree)))
+    
+    def __lt__(self, other):
+        if isinstance(other, PermGroup):
+            self.change_base(list(range(1, self.degree)))
+            other.change_base(list(range(1, self.degree)))
+            return self.schreier_structure < other.schreier_structure
         else:
             return NotImplemented
     
@@ -227,11 +236,9 @@ class PermGroup():
     
     def _rand_element(self):
         size = self.order()
-        index = random.choice(range(size))
-        ele = schreier_sims_tools.element_at_index(self.base, self.schreier_graphs, index, self.identity)
+        index = random.randrange(size)
+        ele = self.schreier_structure.element_at_index(index)
         return ele
-            
-            
 
     def _left_cosets(self, subgroup):
         H = subgroup
@@ -272,6 +279,12 @@ class PermGroup():
                     coset_leaders.append(cand)
                     frontier.append(cand)
         return cosets
+    
+    
+class ExpandableGroup(PermGroup):
+    def add_generator(perm):
+        pass
+    
     
 
 class PermCoset():

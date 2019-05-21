@@ -36,7 +36,7 @@ class TestCosetProperty(unittest.TestCase):
         a = cf([[1,2,3]],4)
         b = cf([[1,2],[3,4]],4)
         gens = [a,b]
-        G= PermGroup(gens)
+        G= PermGroup.fixed_base_group(gens)
         prop = CosetPropertyUnion([SubgroupProperty(G)])
         pos = cf([[2,3,4]],4)        
         neg = cf([[3,4]],4)
@@ -48,7 +48,7 @@ class TestCosetProperty(unittest.TestCase):
         a = cf([[1,2,3]],4)
         b = cf([[1,2],[3,4]],4)
         gens = [a,b]
-        G= PermGroup(gens)
+        G= PermGroup.fixed_base_group(gens)
         prop1 = SubgroupProperty(G)
         prop2 = PartitionStabaliserProperty(Partition([[2,3],[1,4]]))
         co_prop = CosetPropertyUnion([prop1,prop2])
@@ -86,10 +86,10 @@ class TestCosetProperty(unittest.TestCase):
     def test_normaliser_property(self):
         size = 4
         cf = lambda x:Permutation.read_cycle_form(x,size)
-        G = PermGroup([cf([[1,2]]), cf([[1,2,3,4]])])
-        H1 = PermGroup([cf([[1,2,3,4]]),cf([[1,2],[3,4]])])
-        H2 = PermGroup([cf([[1,2,3,4]])])
-        H3 = PermGroup([cf([[1,2],[3,4]]), cf([[1,3],[2,4]])])
+        G = PermGroup.fixed_base_group([cf([[1,2]]), cf([[1,2,3,4]])])
+        H1 = PermGroup.fixed_base_group([cf([[1,2,3,4]]),cf([[1,2],[3,4]])])
+        H2 = PermGroup.fixed_base_group([cf([[1,2,3,4]])])
+        H3 = PermGroup.fixed_base_group([cf([[1,2],[3,4]]), cf([[1,3],[2,4]])])
         self.naive_normaliser_test(G, H1)
         self.naive_normaliser_test(G, H2)
         self.naive_normaliser_test(G, H3)
@@ -117,12 +117,12 @@ class TestCosetProperty(unittest.TestCase):
     def test_subgroup_conjugacy_property(self):
         size = 4
         cf = lambda x:Permutation.read_cycle_form(x,size)
-        G = PermGroup([cf([[1,2]]), cf([[1,2,3,4]])])
-        left1 = PermGroup([cf([[1,2,3,4]]),cf([[1,2],[3,4]])])
-        right1 = PermGroup([cf([[2,1,3,4]]),cf([[1,2],[3,4]])])
-        left2 = PermGroup([cf([[1,2,3,4]])])
-        right2 = PermGroup([cf([[1,4,3,2]])])
-        H3 = PermGroup([cf([[1,2],[3,4]]),cf([[1,3],[2,4]])])
+        G = PermGroup.fixed_base_group([cf([[1,2]]), cf([[1,2,3,4]])])
+        left1 = PermGroup.fixed_base_group([cf([[1,2,3,4]]),cf([[1,2],[3,4]])])
+        right1 = PermGroup.fixed_base_group([cf([[2,1,3,4]]),cf([[1,2],[3,4]])])
+        left2 = PermGroup.fixed_base_group([cf([[1,2,3,4]])])
+        right2 = PermGroup.fixed_base_group([cf([[1,4,3,2]])])
+        H3 = PermGroup.fixed_base_group([cf([[1,2],[3,4]]),cf([[1,3],[2,4]])])
         self.naive_subgroup_conjugacy_test(G, left1, right1)
         self.naive_subgroup_conjugacy_test(G, left2, right2)
         self.naive_subgroup_conjugacy_test(G, H3, H3)  

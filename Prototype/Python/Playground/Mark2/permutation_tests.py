@@ -2,7 +2,18 @@ import unittest
 from permutation import Permutation
 from partition import Partition
 
-class TestPermutation(unittest.TestCase):
+class TestPermutationC(unittest.TestCase):
+    
+    def test_inequalities(self):
+        a=Permutation([2,3,1,4])
+        b=Permutation([2,1,4,3])
+        self.assertTrue(a != b)
+        self.assertTrue(a > b)
+        self.assertFalse(a < b)
+        self.assertFalse(a < a)
+        self.assertFalse(a > a)
+        self.assertTrue(a <= a)
+        self.assertTrue(a >= a)  
     
     def test_equlity(self):
         a=Permutation([2,3,1,4])
@@ -60,8 +71,8 @@ class TestPermutation(unittest.TestCase):
         c=Permutation([])
         self.assertEqual(a**-1 * a, Permutation.read_cycle_form([],4))
         self.assertEqual(a * a**-1, Permutation.read_cycle_form([],4))
-        self.assertEqual((a * a**-1)._func, (1,2,3,4))
-        self.assertEqual(c._func, ())
+        self.assertTrue((a * a**-1).trivial())
+        self.assertTrue(c.trivial())
     
     def test_order(self):
         a=Permutation([2,3,1,4])
@@ -103,7 +114,7 @@ class TestPermutation(unittest.TestCase):
     
 def all_tests_suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(TestPermutation))
+    suite.addTest(unittest.makeSuite(TestPermutationC))
     return suite
 
 if __name__ == '__main__':

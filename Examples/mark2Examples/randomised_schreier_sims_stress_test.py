@@ -7,9 +7,10 @@ from group import PermGroup
 from leon_preset import symmetric_normaliser
 from leon_logger import NodeCounter
 from schreier_sims import schreier_sims_algorithm, group_size
-from schreier_structure import RandomSchreierGenerator
+from schreier_sims_randomised import RandomSchreierGenerator
+from random_element_generator import UniformGenerator
 
-size = 50
+size = 200
 cf = lambda x: Permutation.read_cycle_form(x, size)     
     
 def A50_gens():
@@ -19,10 +20,10 @@ def A50_gens():
 
 def randomised_schreier_sims(gens):
     rg = RandomSchreierGenerator(gens)
-    rg.complete(trials = 20)
+    rg.complete(trials = 5)
     ss = rg.structure
     print(sum(len(chain_gens) for chain_gens in ss.chain_generators))
-    print(ss.order())
+    #print(ss.order())
     
 if __name__ == '__main__':
     randomised_schreier_sims(A50_gens())

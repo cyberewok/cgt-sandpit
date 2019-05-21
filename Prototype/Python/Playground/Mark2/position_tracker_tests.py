@@ -1,5 +1,7 @@
 import unittest
 from position_tracker import PositionTracker, DynamicPositionTracker
+from position_tracker import NaivePositionTracker
+
 
 class TestPositionTracker(unittest.TestCase):
     def test_init(self):
@@ -105,11 +107,74 @@ class TestDynamicPositionTracker(unittest.TestCase):
         self.assertEqual(dpt._cur_state, [0,3])
         self.assertEqual(dpt.increment(), -1)
         self.assertEqual(dpt._cur_state, [])
-
+        
+class TestNaivePositionTracker(unittest.TestCase):
+    def test_init(self):
+        npt = NaivePositionTracker()
+        
+    def test_increment(self):
+        npt = NaivePositionTracker()
+        npt.add_level(0,(4,5,6),1)
+        npt.add_level(1,(5,6),4)
+        npt.add_level(4,(1,2,3,7),10)
+        npt.add_level(0,tuple([8]),11)
+        npt.add_level(0,(9,10),12)
+        self.assertEqual(npt.increment(), (4,12))
+        self.assertEqual(npt.increment(), (2,10))
+        self.assertEqual(npt.increment(), (2,10))
+        self.assertEqual(npt.increment(), (2,10))
+        self.assertEqual(npt.increment(), (1,4))
+        self.assertEqual(npt.increment(), (0,1))
+        npt.add_level(0,(1,2,3),8)
+        self.assertEqual(npt.increment(), (1,8))
+        self.assertEqual(npt.increment(), (1,8))
+        self.assertEqual(npt.increment(), (0,1))
+        self.assertEqual(npt.increment(), (-1,-1))
+        
+    def test_split_index(self):
+        npt = NaivePositionTracker()
+        npt.add_level(0,(4,5,6),1)
+        npt.add_level(1,(5,6),4)
+        npt.add_level(4,(1,2,3,7),10)
+        npt.add_level(0,tuple([8]),11)
+        npt.add_level(0,(9,10),12)
+        npt.increment()
+        self.assertEqual(npt.split_index(), 0)
+        self.assertEqual(npt.split_index(), 0)
+        self.assertEqual(npt.split_value(), 10)
+        self.assertEqual(npt.split_value(), 10)
+        npt.increment()
+        self.assertEqual(npt.split_index(), 4)
+        self.assertEqual(npt.split_value(), 2)
+        npt.increment()
+        self.assertEqual(npt.split_index(), 4)
+        self.assertEqual(npt.split_value(), 3)
+        npt.increment()
+        self.assertEqual(npt.split_index(), 4)
+        self.assertEqual(npt.split_value(), 7)
+        npt.increment()
+        self.assertEqual(npt.split_index(), 1)
+        self.assertEqual(npt.split_value(), 6)
+        npt.increment()
+        self.assertEqual(npt.split_index(), 0)
+        self.assertEqual(npt.split_value(), 5)
+        npt.add_level(0,(1,2,3),8)
+        npt.increment()
+        self.assertEqual(npt.split_index(), 0)
+        self.assertEqual(npt.split_value(), 2)
+        npt.increment()
+        self.assertEqual(npt.split_index(), 0)
+        self.assertEqual(npt.split_value(), 3)
+        npt.increment()
+        self.assertEqual(npt.split_index(), 0)
+        self.assertEqual(npt.split_value(), 6)
+        self.assertEqual(npt.increment(), (-1,-1))
+        
 def all_tests_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestPositionTracker))
     suite.addTest(unittest.makeSuite(TestDynamicPositionTracker))
+    suite.addTest(unittest.makeSuite(TestNaivePositionTracker))
     return suite
 
 if __name__ == '__main__':

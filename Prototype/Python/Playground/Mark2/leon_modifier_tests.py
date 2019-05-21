@@ -39,7 +39,7 @@ class TestModifiers(unittest.TestCase):
         cf = lambda x: Permutation.read_cycle_form(x,13)
         a = cf([[2,3],[4,6],[5,8],[9,11]])
         b = cf([[1,2,4,7,9,3,5,6,8,10,11,12,13]])
-        G = PermGroup([a,b])
+        G = PermGroup.fixed_base_group([a,b])
         part_stab = Partition([[3,2],[6,4],[5,1,7,8,9,10,11,12,13]])
         
         fam = RefinementUnion([PartitionStabaliserFamily(part_stab), SubgroupFamily(G)])

@@ -1,69 +1,20 @@
 from permutation import Permutation
 from ordering import ordering_to_key
-from random import randrange
 from math import log2
-
-class RandomGenerator():
-    
-    def element(self):
-        pass
-    
-    def add(self):
-        pass
-
-class ProductReplacer(RandomGenerator):
-    def __init__(self, seed_gens):
-        self.seed_gens = [gen for gen in seed_gens]
-        self.degree = len(self.seed_gens[0])
-        self.rand = lambda : randrange(len(seed_gens))
-        self.rand_deg = lambda : randrange(len(seed_gens))        
-        while len(self.seed_gens) < log2(self.degree)*2:
-            self.seed_gens.append(self.seed_gens[self.rand()]**self.rand_deg())
-        self.initialise(30*len(self.seed_gens))
-    
-    def initialise(self, num_rolls):
-        for _ in range(num_rolls):
-            self.element()
-    
-    def add(self, ele):
-        self.seed_gens.append(ele)
-    
-    def element(self):
-
-        if len(self.seed_gens) == 1:
-            return self.seed_gens[0]        
-        i = self.rand()
-        j = self.rand()
-        while i==j:
-            j = self.rand()
-        self.seed_gens[j] = self.seed_gens[i] * self.seed_gens[j]
-        return self.seed_gens[j]
-
-class RandomSubproduct(RandomGenerator):
-    def __init__(self, seed_gens):
-        self.seed_gens = seed_gens
-        self.degree = len(self.seed_gens[0])
-        self.identity = Permutation.read_cycle_form([], self.degree)
-        self.rand = lambda : randrange(2)
-    
-    def add(self, ele):
-        self.seed_gens.append(ele)
-    
-    def element(self):
-        tot = self.identity
-        for gen in self.seed_gens:
-            if self.rand():
-                tot = tot * gen
-        return tot
 
 class SchreierStructure():
     def __init__(self, degree):
         self.degree = degree
         self.identity = Permutation.read_cycle_form([], degree)
         self.chain_generators = []
+        self.schreier_reps = []
         self.schreier_graphs = []
+        #base is needed as a feild.
         self.base = []
         self.stabaliser_orbits = []
+    
+    def base_at_level(self, level):
+        return self.base[level]
     
     def base_till_level(self, level = None):
         if level is None:
@@ -71,7 +22,7 @@ class SchreierStructure():
         return self.base[:level]
         
     def level_generators(self, level):
-        self.chain_schreier_generators[level]
+        return self.chain_generators[level]
     
     def stabaliser_orbit(self, level = 0):
         return self.stabaliser_orbits[level]
@@ -79,7 +30,7 @@ class SchreierStructure():
     def add_to_stabaliser_orbit(self, elements, level = 0):
         self.stabaliser_orbits[level].update(elements)
     
-    def _extend_level_single(self, g, level, frontier = None, force_update = False):
+    def _extend_level_single(self, g, level, frontier = None, force_update = False, improve_tree = True):
         #optimisation idea sort the frontier by cost
         updated = False
         graph = self.schreier_graphs[level]
@@ -103,7 +54,7 @@ class SchreierStructure():
                         updates.append((index, (g, inverse_power, new_cost)))
                         new_frontier.append(ele)
                     else:
-                        if new_cost < cost:
+                        if improve_tree and new_cost < cost:
                             updates.append((index, (g, inverse_power, new_cost)))
                     visited[ele] = True                
                             
@@ -115,10 +66,10 @@ class SchreierStructure():
         
         return updated, new_frontier
      
-    def extend_level(self, g, level):
+    def extend_level(self, g, level, force_update = False, improve_tree = True):
         #optimisation idea sort the frontier by cost
         frontier = self.stabaliser_orbit(level)
-        updated, frontier = self._extend_level_single(g, level, frontier, False)
+        updated, frontier = self._extend_level_single(g, level, frontier, force_update, improve_tree)
          
         if updated:
             self.add_to_stabaliser_orbit(frontier, level)  
@@ -146,7 +97,8 @@ class SchreierStructure():
                 #update the index and the pointer to the new part of frontier.
                 gen_index = (gen_index + 1) % len(self.chain_generators[level])
                 frontier_index += additions[gen_index]
-        
+        elif force_update:
+            self.chain_generators[level].append(g)            
 
         return updated
         
@@ -169,14 +121,99 @@ class SchreierStructure():
             return None
         return g * inverse
     
-    def sift(self, g):
-        for level in range(len(self.base)):
-            g = self.sift_on_level(g, level)
-            if g is None:
-                return None
-            elif g.trivial():
+    def siftee(self, g, level = 0):
+        for cur_level in range(level, len(self.base)):
+            cand = self.sift_on_level(g, cur_level)
+            if cand is None:
                 return g
+            elif cand.trivial():
+                return cand
+            g = cand
         return g
+    
+    def membership(self, g, level = 0):
+        cand = self.siftee(g, level)
+        return (cand is not None) and cand.trivial()
+    
+    def __contains__(self, g):
+        return self.membership(g)
+    
+    def __lt__(self, other):
+        if isinstance(other, type(self)):
+            for self_gen, other_gen in zip(self.canonical_generators(), other.canonical_generators()):
+                if self_gen != other_gen:
+                    if self_gen < other_gen:
+                        return True
+                    else:
+                        return False
+            return False
+                        
+            
+            ##compare base?
+            #if self.base != other.base:
+                #return self.base < other.base
+            
+            ##compare orbit sizes/elements
+            #for level in range(len(self.base)):
+                #self_orb = self.stabaliser_orbit[level]
+                #other_orb = other.stabaliser_orbit[level]
+                
+                #self_min = None                
+                #for ele in self_orb:
+                    #if ele not in other_orb:
+                        #if self_min is None or ele < self_min:
+                            #self_min = ele
+                
+                #other_min = None                
+                #for ele in other_orb:
+                    #if ele not in self_orb:
+                        #if other_min is None or ele < other_min:
+                            #other_min = ele
+                
+                #if self_min is not None and other_min is not None:
+                    #return self_min < other_min
+                
+                #if self_min is not None:
+                    #return True
+                
+                #if other_min is not None:
+                    #return False
+            
+                
+            ##compare leftmost branch right most children
+        else:
+            return NotImplemented
+            
+    def canonical_generators(self):
+        for level in reversed(range(len(self.base))):
+            #calc the representative for each image (the fast way).
+            #use this to initialise cand
+            #should possibly store this sorted.
+            madan = True
+            for rep in self.transversal(level):
+                if rep is not None:
+                    if madan:
+                        madan = False
+                    else:
+                        yield self.leftmost_child(rep, level + 1)
+    
+    def leftmost_child(self, coset_rep, level):
+        # 1: if bottom level return cand
+        # 2: look at orbits from one level down when acted on by cand
+        # 3: take the smallest image and the rep for that image and make cand = rep * cand
+        # 4: go1
+        cand = coset_rep
+        for cur_level in range(level, len(self.base)):
+            best_image = None
+            best_pre = None
+            for pre in self.stabaliser_orbit(cur_level):
+                cand_image = pre ** cand
+                if best_image is None or cand_image < best_image:
+                    best_image = cand_image
+                    best_pre = pre
+            rep = self.stabaliser_representative(best_pre, cur_level)
+            cand = (rep ** -1) * cand
+        return cand
     
     def stabaliser_representative(self, image, level):
         """Returns the coset representative inverse for coset associated with 
@@ -197,8 +234,55 @@ class SchreierStructure():
             cur_num = image
             cur_g_base, cur_pow, _ = graph[cur_index]
         return g
+
+    
+    def transversal(self, level):
+        #this is the inefficient version.
+        #you should store temp paths to do efficiently (as you are stroing them anyway)
+        #invs = [self.stabaliser_representative(image, level) for image in range(self.degree, 0, -1)]
+        #ret = []
+        #for g in reversed(invs):
+            #if g is not None:
+                #ret.append(g ** -1)
+            #else:
+                #ret.append(None)
+        #return ret
+        #better way:
+        ret = [None] * self.degree
+        for index, g in enumerate(self.transversal_inverses(level)):
+            if g is not None:
+                ret[index] = g ** -1
+        return ret
+        
+    def transversal_inverses(self, level):
+        #initialise ret
+        #for each possible value in degree check if graph is None
+        #if not follow path back till get to a non none
+        ret = [None] * self.degree
+        ret[self.base[level] - 1] = self.identity
+        graph = self.schreier_graphs[level]
+        for image in range(1, self.degree + 1):
+            cur_index = image - 1
+            cur_num = image
+            g_chain = []            
+            cur_g_base, cur_pow, _ = graph[cur_index]
+            if cur_g_base is not None:    
+                while ret[cur_index] is None:
+                    cur_g = cur_g_base ** cur_pow
+                    g_chain.append((cur_index, cur_g))
+                    image = cur_num ** cur_g
+                    cur_index = image - 1
+                    cur_num = image
+                    cur_g_base, cur_pow, _ = graph[cur_index]
+                rest = ret[cur_index]
+                for chain_index, chain_g in reversed(g_chain):
+                    rest = chain_g * rest
+                    ret[chain_index] = rest   
+        return ret
+    
     
     def discrete(self):
+        #This is not true. Need better condition.
         if len(self.stabaliser_orbits[-1]) == 0:
             return False
         return len(self.stabaliser_orbits[-1]) == 1
@@ -208,297 +292,931 @@ class SchreierStructure():
         for orb in self.stabaliser_orbits:
             tot *= len(orb)
         return tot
-
-class RandomSchreierGenerator():
-    def __init__(self, generators, base = None, group_order = None, element_generator_constructor = None):
-        if len(generators) == 0:
-            raise ValueError("Must define atleast one generator.")
-        self.generators = generators
-        self.degree = len(generators[0])
-        self.base_candidate = base
-        if self.base_candidate is None:
-            self.base_candidate = []
-        self.group_order = group_order
-        if element_generator_constructor is None:
-            element_generator_constructor = ProductReplacer
-        self.rand_factory = element_generator_constructor
-        self.rand = self.rand_factory(self.generators)
-        self.level_complete = []
-        self.depth = 0
-        self.structure = SchreierStructure(self.degree)
-        
-    def complete(self, confidence = .999, trials = None):
-        self.verify_till_level(self.degree, confidence, trials)
     
-    def complete_till_level(self, level, confidence = .999, trials = None):
-        self.verify_till_level(level, confidence, trials)
+    def orbits(self, level = 0, key = None, in_order = False):
+        orbits = []
+        visited = [None] * self.degree
+        for ele in range(1, self.degree + 1):
+            if visited[ele - 1] is None:
+                orb = self.orbit(ele, level, key = key)
+                orbits.append(orb)
+                for orb_ele in orb:    
+                    visited[orb_ele - 1] = True
+        return orbits
+        
     
-    def verify_till_level(self, level, confidence = .999, trials = None):
-        
-        if trials is None:
-            trials = log2(1/(1-confidence))
-        
-        passes = 0
-        ret = True
-
-        if self.group_order is not None and self.structure.order() == self.group_order:
-            return ret        
-
-        while passes < trials:
-            cand = self.rand.element()
-            
-            if self.sift_till_level(cand, level):
-                passes += 1
-            else:
-                ret = False
-                passes = 0
-                if self.group_order is not None and self.structure.order() == self.group_order:
-                    return ret
+    def orbit(self, num, level = 0, key = None, in_order = False):
+        if level >= len(self.base):
+            return [num]
+        orb = self._orbit_computation(num, level)
+        if in_order:
+            ret = sorted(orb, key = key)
+        else:
+            ret = orb
         return ret
-        
-    def sift_till_level(self, cand, level, start_level = 0):
-
-        
-        for cur_level in range(start_level, level):
-            if cur_level == self.depth:
-                self.add_level(cand)
-          
-            siftee = self.structure.sift_on_level(cand, cur_level)
-            
-            if siftee is None:
-                self.structure.extend_level(cand, cur_level)
-                return False
-            
-            if siftee.trivial():
-                return True
-            
-            cand = siftee
-        
-        return True
-
-    def add_level(self, cand):
-        self.level_complete.append(False)
-        new_base_ele = self.extend_base(cand)
-        self.structure.add_level(new_base_ele)
-        self.depth += 1
-        
-    def extend_base(self, non_id):
-        index = len(self.structure.base)
-        if index < len(self.base_candidate):
-            new_element = self.base_candidate[index]
-            return new_element
-        elif not non_id.trivial():
-            first_non_fixed = next(num for num in range(1, len(non_id) + 1) if num**non_id != num)
-            return first_non_fixed
-        return list(set(list(range(1, len(non_id)))) - set(self.structure.base))[0]
+      
+    def _orbit_computation(self, num, level):
+        # there are better ways to do this. BUt is it too step a price to avoid the hash check.
+        gens = self.level_generators(level)
+        frontier = [num]
+        orb = set(frontier)
+        while len(frontier) > 0:
+            next_frontier = []
+            for gen in gens:
+                for num in frontier:
+                    cand = num**gen
+                    if cand not in orb:
+                        orb.add(cand)
+                        next_frontier.append(cand)
+            frontier = next_frontier
+        return list(orb)
     
-
-class NearlyLinearSchreierGenerator():
-    def __init__(self, generators, base = None, group_order = None, element_generator_constructor = None):
-        if len(generators) == 0:
-            raise ValueError("Must define atleast one generator.")
-        self.generators = generators
-        self.degree = len(generators[0])
-        self.base_candidate = base
-        if self.base_candidate is None:
-            self.base_candidate = []
-        self.group_order = group_order
-        if element_generator_constructor is None:
-            element_generator_constructor = RandomSubproduct
-        self.rand_factory = element_generator_constructor
-        self.rand = [self.rand_factory(self.generators)]
-        self.level_complete = []
-        self.depth = 0
-        self.structure = SchreierStructure(self.degree)
-    
-    def populate_level(self, level,  trials = 1):
-        fails = 0
-        while fails < trials:
-            #Generate a random element from the level above.
-            cand = rand[level].element()
-            #Multiply by the inverse in the schreier vector.
-            stab_cand = structure.sift_on_level(cand, level - 1)
-            #Check if the element provides anything new.
-            #If it does update the schreier vector with all it's shorter paths
-            #Keep track of the number of distinct elements stored.
-            #If no new elements stop orbiting
-            is_bigger = structure.add_to_level(stab_cand, level)
-            if is_bigger:
-                fails = 0
-                self.rand[level + 1].add(stab_cand)
-            else:
-                fails += 1
-    
-    def complete_till_level(self, level, confidence = .99, trials = None):
+    def membership_index(self, g, key = None):
+        if key is None:
+            ordering = self.base + [x for x in range(1, self.degree + 1) if x not in self.base]
+            key = ordering_to_key(ordering)
+        #divide current order by len of orbit
+        #add index used * current order to ret
         
-        for cur_level in range(level):
-            if cur_level == self.depth:
-                self.add_level()
-
-            if not self.level_complete[cur_level]:                
-                self.populate_level(level)
-                self.level_complete[cur_level] = True
+        cand = g
+        #sift on level keeping track of which index out of tot
+        ret = 0
+        cur_order = self.order()
+        go_leftmost = False
+        
+        for cur_level in range(0, len(self.base)):
+            cur_orbit = self.stabaliser_orbit(cur_level)
+            cur_order //= len(cur_orbit)
             
-            if self.structure.discrete():
+            image = self.base[cur_level] ** cand
+            post_image = self.base[cur_level] ** g
+            found = False
+            des_index = 0
+            for end in cur_orbit:
+                if key(end ** g) < key(post_image):
+                    des_index += 1
+            
+            ret += des_index * cur_order            
+            
+            if image not in cur_orbit:
                 break
+            
+            if not cand.trivial():
+                cand = self.sift_on_level(cand, cur_level)
         
-        self.verify_till_level(level, confidence, trials)
+        return ret
     
-    def verify_till_level(self, level, confidence = .99, tials = None):
-        if self.group_order is not None and self.structure.discrete():
-            if self.group_order == self.structure.order():
-                return True
+    def element_at_index(self, index, key = None):
+        if index < 0 or index >= self.order():
+            return None
+        if key is None:
+            ordering = self.base + [x for x in range(1, self.degree + 1) if x not in self.base]
+            key = ordering_to_key(ordering)
         
-        if trials is None:
-            trials = log2(1/(1-confidence))
+        ret = self.identity
         
-        passes = 0
-        ret = True
-        while passes < trials:
-            if self.sift_till_level(level):
-                passes += 1
-            else:
-                ret = False
-                passes = 0
+        cur_order = self.order()
+        for cur_level in range(0, len(self.base)):
+            cur_orbit = self.stabaliser_orbit(cur_level)
+            cur_order //= len(cur_orbit)
+            des_index = index // cur_order
+            index -= des_index * cur_order
+            
+            #this should be a quick select algorithm if hi performance required.
+            image = sorted([(ele ** ret, ele) for ele in cur_orbit], key = lambda x:key(x[0]))[des_index][1]
+            inverse = self.stabaliser_representative(image, cur_level)
+            if inverse is None:
+                raise ValueError("Unexpected orbit violation.")
+            ret = (inverse ** (-1)) * ret  
+        
         return ret
         
-    def sift_till_level(self, level, start_level = 0):
-
-        cand = rand[start_level].element()
-        for cur_level in range(start_level, level):
-            if cur_level == self.depth:
-                add_level()
-          
-            siftee = structure.sift_on_level(cand, cur_level)
+    def element_from_image(self, image):      
+        ret = self.identity
+        for cur_level in range(0, len(self.base)):
             
-            if siftee is None:
-                structure.add_to_level(cand, cur_level)
-                return False
-            
-            if siftee.trivial():
-                return True
-            
-            cand = siftee
+            #this should be a quick select algorithm if hi performance required
+            des_image = self.base_at_level(cur_level)
+            if cur_level < len(image):
+                cur_orbit = self.stabaliser_orbit(cur_level)                
+                des_image = image[cur_level] ** ret
+                if des_image not in cur_orbit:
+                    return None
+            inverse = self.stabaliser_representative(des_image, cur_level)
+            ret = ret * inverse  
         
-        return True
-            
-        
-                
-    def add_level(self):
-        self.level_complete.append(False)
-        if self.depth == 0:
-            gens = self.generators
-        else:
-            gens = self.structure.level_generators(depth - 1)
-        self.rand.append(self.rand_factory(gens))
-        new_base_ele = self.extend_base(gens[0])
-        self.structure.add_level(new_base_ele)
-        self.depth += 1
-        
-    def extend_base(self,non_id):
-        index = len(self.structure.base)
-        if index < len(self.base_candidate):
-            new_element = self.base_candidate[index]
-            return new_element
-        else:
-            first_non_fixed = next(num for num in range(1, len(self.identity) + 1) if num**non_id != num)
-            
-            return first_non_fixed
+        return ret ** -1
     
-def _schreier_graph(num, edges, identity):
-    """Calculates the schreier graph for the group defined by the generator list
-    edges with respect to subgroup stabalised by the base set element num.
-    Also needs a copy of the identity element."""
-    #Num is the fixed element of the base set that G acts on.
-    #Edges are the generators for previous subgroup.
-    schreier_graph = [None for _ in range(len(identity))]
-    schreier_graph[num - 1] = identity
-    return _schreier_graph_expand(schreier_graph, edges, 0)
+class VectorSchreierStructure(SchreierStructure):
+    def __init__(self, degree):
+        self.degree = degree
+        self.identity = Permutation.read_cycle_form([], degree)
+        self.chain_generators = []
+        self.schreier_graphs = []
+        #base is needed as a feild.
+        self.base = []
+        self.stabaliser_orbits = []
+    
+    def base_at_level(self, level):
+        return self.base[level]
+    
+    def base_till_level(self, level = None):
+        if level is None:
+            level = len(self.base) 
+        return self.base[:level]
+        
+    def level_generators(self, level):
+        return self.chain_generators[level]
+    
+    def stabaliser_orbit(self, level = 0):
+        return self.stabaliser_orbits[level]
+    
+    def add_to_stabaliser_orbit(self, elements, level = 0):
+        self.stabaliser_orbits[level].update(elements)
+    
+    def _extend_level_single(self, g, level, frontier = None, force_update = False, improve_tree = True):
+        #optimisation idea sort the frontier by cost
+        updated = False
+        graph = self.schreier_graphs[level]
+        if frontier is None:
+            frontier = self.stabaliser_orbit(level)
+        
+        new_frontier = []
+        visited = [False] * (self.degree + 1)
+        updates = []
+        for cand in frontier:
+            if not visited[cand]:
+                cand_cycle = g.element_cycle(cand)
+                cycle_size = len(cand_cycle)
+                for power, ele in enumerate(cand_cycle):
+                    index = ele - 1
+                    inverse, _, cost = graph[index]
+                    inverse_power = cycle_size - power
+                    new_cost = graph[cand - 1][2] + 1
+                    if inverse is None:
+                        updated = True
+                        updates.append((index, (g, inverse_power, new_cost)))
+                        new_frontier.append(ele)
+                    else:
+                        if improve_tree and new_cost < cost:
+                            updates.append((index, (g, inverse_power, new_cost)))
+                    visited[ele] = True                
+                            
+        
+        #Apply found updates if there is a new element in the orbit
+        if updated or force_update:
+            for index, node in updates:
+                graph[index] = node        
+        
+        return updated, new_frontier
+     
+    def extend_level(self, g, level, force_update = False, improve_tree = True):
+        #optimisation idea sort the frontier by cost
+        frontier = self.stabaliser_orbit(level)
+        updated, frontier = self._extend_level_single(g, level, frontier, force_update, improve_tree)
+         
+        if updated:
+            self.add_to_stabaliser_orbit(frontier, level)  
+            self.chain_generators[level].append(g)
+            additions = [0] * (len(self.chain_generators[level]) - 1) + [len(frontier)]
+    
+            gen_index = 0
+            frontier_index = additions[gen_index]      
+            
+            while frontier_index < len(frontier):
+                #get the current generator
+                gen = self.chain_generators[level][gen_index]
+                
+                #try update the frontier with it (only using unseen points).
+                _, new_frontier = self._extend_level_single(gen, level, frontier[frontier_index:], True)
+                
+                #keep track of how many new points reached
+                additions[gen_index] = len(new_frontier)
+                
+                #update the frontier
+                self.add_to_stabaliser_orbit(new_frontier, level)            
+                if len(new_frontier) > 0:
+                    frontier.extend(new_frontier)
+                
+                #update the index and the pointer to the new part of frontier.
+                gen_index = (gen_index + 1) % len(self.chain_generators[level])
+                frontier_index += additions[gen_index]
+        elif force_update:
+            self.chain_generators[level].append(g)            
 
-def _schreier_graph_expand(schreier_graph, edges, new_edge_index):
-    """Given a schreier graph accurate for the generators upto the 
-    new_edge_index this function extends the schreier graph. Note the 
-    schreier_graph parameter is modified in place AND returned."""
-    #New edge index is the index from which all generators after that index have not yet been considered, i.e., are new.
-    #Inverses are needed to calculate images as the path to the identity has to be in terms of generators (to save space). 
-    edges_inv = [g**-1 for g in edges]
-    #The orbit of the fixed set element (note we dont need to know this element explicitly).
-    old_frontier = [i + 1 for i, g in enumerate(schreier_graph) if g is not None]
-    new_frontier = []
-    cur_index = 0
-    for num in old_frontier:
-        #Try each of the new edges to get a new point from the set.
-        for g, g_inv in zip(edges[new_edge_index:], edges_inv[new_edge_index:]):
-            image = num**g_inv
-            if schreier_graph[image - 1] is None:
-                #Found a new point (we havent been to this entry in the graph before)!
-                schreier_graph[image - 1] = g
-                new_frontier.append(image)
-    while len(new_frontier) > 0:
-        #While there are still points to explore.
-        cur_num = new_frontier.pop()
-        for g, g_inv in zip(edges, edges_inv):
-            #Try all the edges.
-            image = cur_num**g_inv
-            if schreier_graph[image - 1] is None:
-                #New point found
-                schreier_graph[image - 1] = g
-                new_frontier.append(image)
-    return schreier_graph    
-
-def _coset_rep_inverses(schreier_graph, identity):
-    """Constructs the coset representative inverses for each coset
-    reachable in the schreier_graph. Needs the identity."""
-    coset_reps = [None for _ in schreier_graph]
-    coset_reps[schreier_graph.index(identity)] = identity
-    for index in [i for i, v in enumerate(schreier_graph) if v is not None]:
-        #Iterates over all indices of reachable cosets in the schreier_graph.
-        indices_to_coset = [index] #the path back to known cosets.
-        while coset_reps[indices_to_coset[-1]] is None:
-            #Populates the indices of a path back to a known coset.
-            cur_index = indices_to_coset[-1]
-            cur_g = schreier_graph[cur_index]
-            cur_num = (cur_index + 1)
-            image = cur_num**cur_g
-            image_index = image - 1
-            indices_to_coset.append(image_index)
-        #The last index is a known coset so we do not need to know the generator there.
-        prev_index = indices_to_coset.pop()
-        while len(indices_to_coset) > 0:
-            #Pop the last index and update the list of known cosets
-            cur_index = indices_to_coset.pop()
-            coset_reps[cur_index] = schreier_graph[cur_index] * coset_reps[prev_index]
-            prev_index = cur_index
-    #return the list coset representative inverses found.
-    return coset_reps    
-
-def _coset_reps(schreier_graph, identity):
-    """Constructs a list of coset leaders for the given schreier graph."""
-    coset_reps = []
-    inv = _coset_rep_inverses(schreier_graph, identity)
-    for g in inv:
-        if g is not None:
-            coset_reps.append(g**-1)
+        return updated
+        
+    def add_level(self, base_element):
+        self.chain_generators.append([])
+        graph = [(None, 1, 0) for _ in range(self.degree)]
+        index = base_element - 1
+        graph[index] = (self.identity, 1, 0)
+        self.schreier_graphs.append(graph)
+        self.base.append(base_element)
+        self.stabaliser_orbits.append(set([base_element]))
+    
+    def sift_on_level(self, g, level):
+        if level < 0:
+            #This indicates we want to sift before stabalising anything.
+            return g
+        cand = self.base[level] ** g
+        inverse = self.stabaliser_representative(cand, level)
+        if inverse is None:
+            return None
+        return g * inverse
+    
+    def siftee(self, g, level = 0):
+        for cur_level in range(level, len(self.base)):
+            cand = self.sift_on_level(g, cur_level)
+            if cand is None:
+                return g
+            elif cand.trivial():
+                return cand
+            g = cand
+        return g
+    
+    def membership(self, g, level = 0):
+        cand = self.siftee(g, level)
+        return (cand is not None) and cand.trivial()
+    
+    def __contains__(self, g):
+        return self.membership(g)
+    
+    def __lt__(self, other):
+        if isinstance(other, type(self)):
+            for self_gen, other_gen in zip(self.canonical_generators(), other.canonical_generators()):
+                if self_gen != other_gen:
+                    if self_gen < other_gen:
+                        return True
+                    else:
+                        return False
+            return False
+                        
+            
+            ##compare base?
+            #if self.base != other.base:
+                #return self.base < other.base
+            
+            ##compare orbit sizes/elements
+            #for level in range(len(self.base)):
+                #self_orb = self.stabaliser_orbit[level]
+                #other_orb = other.stabaliser_orbit[level]
+                
+                #self_min = None                
+                #for ele in self_orb:
+                    #if ele not in other_orb:
+                        #if self_min is None or ele < self_min:
+                            #self_min = ele
+                
+                #other_min = None                
+                #for ele in other_orb:
+                    #if ele not in self_orb:
+                        #if other_min is None or ele < other_min:
+                            #other_min = ele
+                
+                #if self_min is not None and other_min is not None:
+                    #return self_min < other_min
+                
+                #if self_min is not None:
+                    #return True
+                
+                #if other_min is not None:
+                    #return False
+            
+                
+            ##compare leftmost branch right most children
         else:
-            coset_reps.append(None)
-    return coset_reps
+            return NotImplemented
+            
+    def canonical_generators(self):
+        for level in reversed(range(len(self.base))):
+            #calc the representative for each image (the fast way).
+            #use this to initialise cand
+            #should possibly store this sorted.
+            madan = True
+            for rep in self.transversal(level):
+                if rep is not None:
+                    if madan:
+                        madan = False
+                    else:
+                        yield self.leftmost_child(rep, level + 1)
+    
+    def leftmost_child(self, coset_rep, level):
+        # 1: if bottom level return cand
+        # 2: look at orbits from one level down when acted on by cand
+        # 3: take the smallest image and the rep for that image and make cand = rep * cand
+        # 4: go1
+        cand = coset_rep
+        for cur_level in range(level, len(self.base)):
+            best_image = None
+            best_pre = None
+            for pre in self.stabaliser_orbit(cur_level):
+                cand_image = pre ** cand
+                if best_image is None or cand_image < best_image:
+                    best_image = cand_image
+                    best_pre = pre
+            rep = self.stabaliser_representative(best_pre, cur_level)
+            cand = (rep ** -1) * cand
+        return cand
+    
+    def stabaliser_representative(self, image, level):
+        """Returns the coset representative inverse for coset associated with 
+        the image reachable in the schreier_graph."""
+        graph = self.schreier_graphs[level]
+        g = self.identity
+        cur_index = image - 1
+        cur_num = image
+        cur_g_base, cur_pow, _ = graph[cur_index]
+        if cur_g_base is None:
+            return None
+        while cur_num != self.base[level]:# and cur_g_base is not None:# and cur_pow > 0:
+            cur_g = cur_g_base ** cur_pow
+            #Follow the chain to the identity and multiply by the schreier graph element.
+            g = g * cur_g
+            image = cur_num ** cur_g
+            cur_index = image - 1
+            cur_num = image
+            cur_g_base, cur_pow, _ = graph[cur_index]
+        return g
 
+    
+    def transversal(self, level):
+        #this is the inefficient version.
+        #you should store temp paths to do efficiently (as you are stroing them anyway)
+        #invs = [self.stabaliser_representative(image, level) for image in range(self.degree, 0, -1)]
+        #ret = []
+        #for g in reversed(invs):
+            #if g is not None:
+                #ret.append(g ** -1)
+            #else:
+                #ret.append(None)
+        #return ret
+        #better way:
+        ret = [None] * self.degree
+        for index, g in enumerate(self.transversal_inverses(level)):
+            if g is not None:
+                ret[index] = g ** -1
+        return ret
+        
+    def transversal_inverses(self, level):
+        #initialise ret
+        #for each possible value in degree check if graph is None
+        #if not follow path back till get to a non none
+        ret = [None] * self.degree
+        ret[self.base[level] - 1] = self.identity
+        graph = self.schreier_graphs[level]
+        for image in range(1, self.degree + 1):
+            cur_index = image - 1
+            cur_num = image
+            g_chain = []            
+            cur_g_base, cur_pow, _ = graph[cur_index]
+            if cur_g_base is not None:    
+                while ret[cur_index] is None:
+                    cur_g = cur_g_base ** cur_pow
+                    g_chain.append((cur_index, cur_g))
+                    image = cur_num ** cur_g
+                    cur_index = image - 1
+                    cur_num = image
+                    cur_g_base, cur_pow, _ = graph[cur_index]
+                rest = ret[cur_index]
+                for chain_index, chain_g in reversed(g_chain):
+                    rest = chain_g * rest
+                    ret[chain_index] = rest   
+        return ret
+    
+    
+    def discrete(self):
+        #This is not true. Need better condition.
+        if len(self.stabaliser_orbits[-1]) == 0:
+            return False
+        return len(self.stabaliser_orbits[-1]) == 1
+    
+    def order(self):
+        tot = 1
+        for orb in self.stabaliser_orbits:
+            tot *= len(orb)
+        return tot
+    
+    def orbits(self, level = 0, key = None, in_order = False):
+        orbits = []
+        visited = [None] * self.degree
+        for ele in range(1, self.degree + 1):
+            if visited[ele - 1] is None:
+                orb = self.orbit(ele, level, key = key)
+                orbits.append(orb)
+                for orb_ele in orb:    
+                    visited[orb_ele - 1] = True
+        return orbits
+        
+    
+    def orbit(self, num, level = 0, key = None, in_order = False):
+        if level >= len(self.base):
+            return [num]
+        orb = self._orbit_computation(num, level)
+        if in_order:
+            ret = sorted(orb, key = key)
+        else:
+            ret = orb
+        return ret
+      
+    def _orbit_computation(self, num, level):
+        # there are better ways to do this. BUt is it too step a price to avoid the hash check.
+        gens = self.level_generators(level)
+        frontier = [num]
+        orb = set(frontier)
+        while len(frontier) > 0:
+            next_frontier = []
+            for gen in gens:
+                for num in frontier:
+                    cand = num**gen
+                    if cand not in orb:
+                        orb.add(cand)
+                        next_frontier.append(cand)
+            frontier = next_frontier
+        return list(orb)
+    
+    def membership_index(self, g, key = None):
+        if key is None:
+            ordering = self.base + [x for x in range(1, self.degree + 1) if x not in self.base]
+            key = ordering_to_key(ordering)
+        #divide current order by len of orbit
+        #add index used * current order to ret
+        
+        cand = g
+        #sift on level keeping track of which index out of tot
+        ret = 0
+        cur_order = self.order()
+        go_leftmost = False
+        
+        for cur_level in range(0, len(self.base)):
+            cur_orbit = self.stabaliser_orbit(cur_level)
+            cur_order //= len(cur_orbit)
+            
+            image = self.base[cur_level] ** cand
+            post_image = self.base[cur_level] ** g
+            found = False
+            des_index = 0
+            for end in cur_orbit:
+                if key(end ** g) < key(post_image):
+                    des_index += 1
+            
+            ret += des_index * cur_order            
+            
+            if image not in cur_orbit:
+                break
+            
+            if not cand.trivial():
+                cand = self.sift_on_level(cand, cur_level)
+        
+        return ret
+    
+    def element_at_index(self, index, key = None):
+        if index < 0 or index >= self.order():
+            return None
+        if key is None:
+            ordering = self.base + [x for x in range(1, self.degree + 1) if x not in self.base]
+            key = ordering_to_key(ordering)
+        
+        ret = self.identity
+        
+        cur_order = self.order()
+        for cur_level in range(0, len(self.base)):
+            cur_orbit = self.stabaliser_orbit(cur_level)
+            cur_order //= len(cur_orbit)
+            des_index = index // cur_order
+            index -= des_index * cur_order
+            
+            #this should be a quick select algorithm if hi performance required.
+            image = sorted([(ele ** ret, ele) for ele in cur_orbit], key = lambda x:key(x[0]))[des_index][1]
+            inverse = self.stabaliser_representative(image, cur_level)
+            if inverse is None:
+                raise ValueError("Unexpected orbit violation.")
+            ret = (inverse ** (-1)) * ret  
+        
+        return ret
+        
+    def element_from_image(self, image):      
+        ret = self.identity
+        for cur_level in range(0, len(self.base)):
+            
+            #this should be a quick select algorithm if hi performance required
+            des_image = self.base_at_level(cur_level)
+            if cur_level < len(image):
+                cur_orbit = self.stabaliser_orbit(cur_level)                
+                des_image = image[cur_level] ** ret
+                if des_image not in cur_orbit:
+                    return None
+            inverse = self.stabaliser_representative(des_image, cur_level)
+            ret = ret * inverse  
+        
+        return ret ** -1
 
+class DirectSchreierRepresentation():
+    def __init__(self, degree):
+        self.degree = degree
+        self.identity = Permutation.read_cycle_form([], degree)
+        self.chain_generators = []
+        self.schreier_graphs = []
+        #base is needed as a feild.
+        self.base = []
+        self.stabaliser_orbits = []
+    
+    def base_at_level(self, level):
+        return self.base[level]
+    
+    def base_till_level(self, level = None):
+        if level is None:
+            level = len(self.base) 
+        return self.base[:level]
+        
+    def level_generators(self, level):
+        return self.chain_generators[level]
+    
+    def stabaliser_orbit(self, level = 0):
+        return self.stabaliser_orbits[level]
+    
+    def add_to_stabaliser_orbit(self, elements, level = 0):
+        self.stabaliser_orbits[level].update(elements)
+    
+    def _extend_level_single(self, g, level, frontier = None, force_update = False, improve_tree = True):
+        #optimisation idea sort the frontier by cost
+        updated = False
+        graph = self.schreier_graphs[level]
+        if frontier is None:
+            frontier = self.stabaliser_orbit(level)
+        
+        new_frontier = []
+        visited = [False] * (self.degree + 1)
+        updates = []
+        for cand in frontier:
+            if not visited[cand]:
+                cand_cycle = g.element_cycle(cand)
+                cycle_size = len(cand_cycle)
+                for power, ele in enumerate(cand_cycle):
+                    index = ele - 1
+                    inverse, _, cost = graph[index]
+                    inverse_power = cycle_size - power
+                    new_cost = graph[cand - 1][2] + 1
+                    if inverse is None:
+                        updated = True
+                        updates.append((index, (g, inverse_power, new_cost)))
+                        new_frontier.append(ele)
+                    else:
+                        if improve_tree and new_cost < cost:
+                            updates.append((index, (g, inverse_power, new_cost)))
+                    visited[ele] = True                
+                            
+        
+        #Apply found updates if there is a new element in the orbit
+        if updated or force_update:
+            for index, node in updates:
+                graph[index] = node        
+        
+        return updated, new_frontier
+     
+    def extend_level(self, g, level, force_update = False, improve_tree = True):
+        #optimisation idea sort the frontier by cost
+        frontier = self.stabaliser_orbit(level)
+        updated, frontier = self._extend_level_single(g, level, frontier, force_update, improve_tree)
+         
+        if updated:
+            self.add_to_stabaliser_orbit(frontier, level)  
+            self.chain_generators[level].append(g)
+            additions = [0] * (len(self.chain_generators[level]) - 1) + [len(frontier)]
+    
+            gen_index = 0
+            frontier_index = additions[gen_index]      
+            
+            while frontier_index < len(frontier):
+                #get the current generator
+                gen = self.chain_generators[level][gen_index]
+                
+                #try update the frontier with it (only using unseen points).
+                _, new_frontier = self._extend_level_single(gen, level, frontier[frontier_index:], True)
+                
+                #keep track of how many new points reached
+                additions[gen_index] = len(new_frontier)
+                
+                #update the frontier
+                self.add_to_stabaliser_orbit(new_frontier, level)            
+                if len(new_frontier) > 0:
+                    frontier.extend(new_frontier)
+                
+                #update the index and the pointer to the new part of frontier.
+                gen_index = (gen_index + 1) % len(self.chain_generators[level])
+                frontier_index += additions[gen_index]
+        elif force_update:
+            self.chain_generators[level].append(g)            
 
-def _schreier_generators(num, coset_reps, edges, identity):
-    """Returns the schreier generators for the subgroup that stabilises num."""
-    schreier_gens = []
-    unique_check = {identity}
-    for r in [g for g in coset_reps if g is not None]:
-        for s in edges:
-            rs = r * s
-            rs_coset_index = (num**rs) - 1
-            rs_coset_rep = coset_reps[rs_coset_index]
-            gen = rs * rs_coset_rep**-1
-            if gen not in unique_check:    
-                schreier_gens.append(gen)
-                unique_check.add(gen)
-    return schreier_gens
+        return updated
+        
+    def add_level(self, base_element):
+        self.chain_generators.append([])
+        graph = [(None, 1, 0) for _ in range(self.degree)]
+        index = base_element - 1
+        graph[index] = (self.identity, 1, 0)
+        self.schreier_graphs.append(graph)
+        self.base.append(base_element)
+        self.stabaliser_orbits.append(set([base_element]))
+    
+    def sift_on_level(self, g, level):
+        if level < 0:
+            #This indicates we want to sift before stabalising anything.
+            return g
+        cand = self.base[level] ** g
+        inverse = self.stabaliser_representative(cand, level)
+        if inverse is None:
+            return None
+        return g * inverse
+    
+    def siftee(self, g, level = 0):
+        for cur_level in range(level, len(self.base)):
+            cand = self.sift_on_level(g, cur_level)
+            if cand is None:
+                return g
+            elif cand.trivial():
+                return cand
+            g = cand
+        return g
+    
+    def membership(self, g, level = 0):
+        cand = self.siftee(g, level)
+        return (cand is not None) and cand.trivial()
+    
+    def __contains__(self, g):
+        return self.membership(g)
+    
+    def __lt__(self, other):
+        if isinstance(other, type(self)):
+            for self_gen, other_gen in zip(self.canonical_generators(), other.canonical_generators()):
+                if self_gen != other_gen:
+                    if self_gen < other_gen:
+                        return True
+                    else:
+                        return False
+            return False
+                        
+            
+            ##compare base?
+            #if self.base != other.base:
+                #return self.base < other.base
+            
+            ##compare orbit sizes/elements
+            #for level in range(len(self.base)):
+                #self_orb = self.stabaliser_orbit[level]
+                #other_orb = other.stabaliser_orbit[level]
+                
+                #self_min = None                
+                #for ele in self_orb:
+                    #if ele not in other_orb:
+                        #if self_min is None or ele < self_min:
+                            #self_min = ele
+                
+                #other_min = None                
+                #for ele in other_orb:
+                    #if ele not in self_orb:
+                        #if other_min is None or ele < other_min:
+                            #other_min = ele
+                
+                #if self_min is not None and other_min is not None:
+                    #return self_min < other_min
+                
+                #if self_min is not None:
+                    #return True
+                
+                #if other_min is not None:
+                    #return False
+            
+                
+            ##compare leftmost branch right most children
+        else:
+            return NotImplemented
+            
+    def canonical_generators(self):
+        for level in reversed(range(len(self.base))):
+            #calc the representative for each image (the fast way).
+            #use this to initialise cand
+            #should possibly store this sorted.
+            madan = True
+            for rep in self.transversal(level):
+                if rep is not None:
+                    if madan:
+                        madan = False
+                    else:
+                        yield self.leftmost_child(rep, level + 1)
+    
+    def leftmost_child(self, coset_rep, level):
+        # 1: if bottom level return cand
+        # 2: look at orbits from one level down when acted on by cand
+        # 3: take the smallest image and the rep for that image and make cand = rep * cand
+        # 4: go1
+        cand = coset_rep
+        for cur_level in range(level, len(self.base)):
+            best_image = None
+            best_pre = None
+            for pre in self.stabaliser_orbit(cur_level):
+                cand_image = pre ** cand
+                if best_image is None or cand_image < best_image:
+                    best_image = cand_image
+                    best_pre = pre
+            rep = self.stabaliser_representative(best_pre, cur_level)
+            cand = (rep ** -1) * cand
+        return cand
+    
+    def stabaliser_representative(self, image, level):
+        """Returns the coset representative inverse for coset associated with 
+        the image reachable in the schreier_graph."""
+        graph = self.schreier_graphs[level]
+        g = self.identity
+        cur_index = image - 1
+        cur_num = image
+        cur_g_base, cur_pow, _ = graph[cur_index]
+        if cur_g_base is None:
+            return None
+        while cur_num != self.base[level]:# and cur_g_base is not None:# and cur_pow > 0:
+            cur_g = cur_g_base ** cur_pow
+            #Follow the chain to the identity and multiply by the schreier graph element.
+            g = g * cur_g
+            image = cur_num ** cur_g
+            cur_index = image - 1
+            cur_num = image
+            cur_g_base, cur_pow, _ = graph[cur_index]
+        return g
+
+    
+    def transversal(self, level):
+        #this is the inefficient version.
+        #you should store temp paths to do efficiently (as you are stroing them anyway)
+        #invs = [self.stabaliser_representative(image, level) for image in range(self.degree, 0, -1)]
+        #ret = []
+        #for g in reversed(invs):
+            #if g is not None:
+                #ret.append(g ** -1)
+            #else:
+                #ret.append(None)
+        #return ret
+        #better way:
+        ret = [None] * self.degree
+        for index, g in enumerate(self.transversal_inverses(level)):
+            if g is not None:
+                ret[index] = g ** -1
+        return ret
+        
+    def transversal_inverses(self, level):
+        #initialise ret
+        #for each possible value in degree check if graph is None
+        #if not follow path back till get to a non none
+        ret = [None] * self.degree
+        ret[self.base[level] - 1] = self.identity
+        graph = self.schreier_graphs[level]
+        for image in range(1, self.degree + 1):
+            cur_index = image - 1
+            cur_num = image
+            g_chain = []            
+            cur_g_base, cur_pow, _ = graph[cur_index]
+            if cur_g_base is not None:    
+                while ret[cur_index] is None:
+                    cur_g = cur_g_base ** cur_pow
+                    g_chain.append((cur_index, cur_g))
+                    image = cur_num ** cur_g
+                    cur_index = image - 1
+                    cur_num = image
+                    cur_g_base, cur_pow, _ = graph[cur_index]
+                rest = ret[cur_index]
+                for chain_index, chain_g in reversed(g_chain):
+                    rest = chain_g * rest
+                    ret[chain_index] = rest   
+        return ret
+    
+    
+    def discrete(self):
+        #This is not true. Need better condition.
+        if len(self.stabaliser_orbits[-1]) == 0:
+            return False
+        return len(self.stabaliser_orbits[-1]) == 1
+    
+    def order(self):
+        tot = 1
+        for orb in self.stabaliser_orbits:
+            tot *= len(orb)
+        return tot
+    
+    def orbits(self, level = 0, key = None, in_order = False):
+        orbits = []
+        visited = [None] * self.degree
+        for ele in range(1, self.degree + 1):
+            if visited[ele - 1] is None:
+                orb = self.orbit(ele, level, key = key)
+                orbits.append(orb)
+                for orb_ele in orb:    
+                    visited[orb_ele - 1] = True
+        return orbits
+        
+    
+    def orbit(self, num, level = 0, key = None, in_order = False):
+        if level >= len(self.base):
+            return [num]
+        orb = self._orbit_computation(num, level)
+        if in_order:
+            ret = sorted(orb, key = key)
+        else:
+            ret = orb
+        return ret
+      
+    def _orbit_computation(self, num, level):
+        # there are better ways to do this. BUt is it too step a price to avoid the hash check.
+        gens = self.level_generators(level)
+        frontier = [num]
+        orb = set(frontier)
+        while len(frontier) > 0:
+            next_frontier = []
+            for gen in gens:
+                for num in frontier:
+                    cand = num**gen
+                    if cand not in orb:
+                        orb.add(cand)
+                        next_frontier.append(cand)
+            frontier = next_frontier
+        return list(orb)
+    
+    def membership_index(self, g, key = None):
+        if key is None:
+            ordering = self.base + [x for x in range(1, self.degree + 1) if x not in self.base]
+            key = ordering_to_key(ordering)
+        #divide current order by len of orbit
+        #add index used * current order to ret
+        
+        cand = g
+        #sift on level keeping track of which index out of tot
+        ret = 0
+        cur_order = self.order()
+        go_leftmost = False
+        
+        for cur_level in range(0, len(self.base)):
+            cur_orbit = self.stabaliser_orbit(cur_level)
+            cur_order //= len(cur_orbit)
+            
+            image = self.base[cur_level] ** cand
+            post_image = self.base[cur_level] ** g
+            found = False
+            des_index = 0
+            for end in cur_orbit:
+                if key(end ** g) < key(post_image):
+                    des_index += 1
+            
+            ret += des_index * cur_order            
+            
+            if image not in cur_orbit:
+                break
+            
+            if not cand.trivial():
+                cand = self.sift_on_level(cand, cur_level)
+        
+        return ret
+    
+    def element_at_index(self, index, key = None):
+        if index < 0 or index >= self.order():
+            return None
+        if key is None:
+            ordering = self.base + [x for x in range(1, self.degree + 1) if x not in self.base]
+            key = ordering_to_key(ordering)
+        
+        ret = self.identity
+        
+        cur_order = self.order()
+        for cur_level in range(0, len(self.base)):
+            cur_orbit = self.stabaliser_orbit(cur_level)
+            cur_order //= len(cur_orbit)
+            des_index = index // cur_order
+            index -= des_index * cur_order
+            
+            #this should be a quick select algorithm if hi performance required.
+            image = sorted([(ele ** ret, ele) for ele in cur_orbit], key = lambda x:key(x[0]))[des_index][1]
+            inverse = self.stabaliser_representative(image, cur_level)
+            if inverse is None:
+                raise ValueError("Unexpected orbit violation.")
+            ret = (inverse ** (-1)) * ret  
+        
+        return ret
+        
+    def element_from_image(self, image):      
+        ret = self.identity
+        for cur_level in range(0, len(self.base)):
+            
+            #this should be a quick select algorithm if hi performance required
+            des_image = self.base_at_level(cur_level)
+            if cur_level < len(image):
+                cur_orbit = self.stabaliser_orbit(cur_level)                
+                des_image = image[cur_level] ** ret
+                if des_image not in cur_orbit:
+                    return None
+            inverse = self.stabaliser_representative(des_image, cur_level)
+            ret = ret * inverse  
+        
+        return ret ** -1
+    
+        
+    
 
 def membership_siftee(candidate, schreier_graphs, base, identity):
     """Returns the sifftee when chaining using the schreier graphs and the given base."""
@@ -514,12 +1232,6 @@ def membership_siftee(candidate, schreier_graphs, base, identity):
         else:
             candidate = candidate * coset_rep
     return candidate
-
-def group_size(schreier_graphs):
-    total = 1
-    for num_cosets in [len([g for g in sg if g is not None]) for sg in schreier_graphs]:
-        total *= num_cosets
-    return total  
 
 def membership_index(candidate, schreier_graphs, base, identity, key = None):
     if key is None:
@@ -841,4 +1553,408 @@ def base_point(base, base_cand, siftee, identity):
     else:
         first_non_fixed = next(num for num in range(1, len(identity) + 1) if num**siftee != num)
         return first_non_fixed
+
+
+class SchreierStructureLegacy():
+    def __init__(self, degree):
+        self.degree = degree
+        self.identity = Permutation.read_cycle_form([], degree)
+        self.chain_generators = []
+        self.schreier_graphs = []
+        #base is needed as a feild.
+        self.base = []
+        self.stabaliser_orbits = []
+    
+    def base_at_level(self, level):
+        return self.base[level]
+    
+    def base_till_level(self, level = None):
+        if level is None:
+            level = len(self.base) 
+        return self.base[:level]
         
+    def level_generators(self, level):
+        return self.chain_generators[level]
+    
+    def stabaliser_orbit(self, level = 0):
+        return self.stabaliser_orbits[level]
+    
+    def add_to_stabaliser_orbit(self, elements, level = 0):
+        self.stabaliser_orbits[level].update(elements)
+    
+    def _extend_level_single(self, g, level, frontier = None, force_update = False, improve_tree = True):
+        #optimisation idea sort the frontier by cost
+        updated = False
+        graph = self.schreier_graphs[level]
+        if frontier is None:
+            frontier = self.stabaliser_orbit(level)
+        
+        new_frontier = []
+        visited = [False] * (self.degree + 1)
+        updates = []
+        for cand in frontier:
+            if not visited[cand]:
+                cand_cycle = g.element_cycle(cand)
+                cycle_size = len(cand_cycle)
+                for power, ele in enumerate(cand_cycle):
+                    index = ele - 1
+                    inverse, _, cost = graph[index]
+                    inverse_power = cycle_size - power
+                    new_cost = graph[cand - 1][2] + 1
+                    if inverse is None:
+                        updated = True
+                        updates.append((index, (g, inverse_power, new_cost)))
+                        new_frontier.append(ele)
+                    else:
+                        if improve_tree and new_cost < cost:
+                            updates.append((index, (g, inverse_power, new_cost)))
+                    visited[ele] = True                
+                            
+        
+        #Apply found updates if there is a new element in the orbit
+        if updated or force_update:
+            for index, node in updates:
+                graph[index] = node        
+        
+        return updated, new_frontier
+     
+    def extend_level(self, g, level, force_update = False, improve_tree = True):
+        #optimisation idea sort the frontier by cost
+        frontier = self.stabaliser_orbit(level)
+        updated, frontier = self._extend_level_single(g, level, frontier, force_update, improve_tree)
+         
+        if updated:
+            self.add_to_stabaliser_orbit(frontier, level)  
+            self.chain_generators[level].append(g)
+            additions = [0] * (len(self.chain_generators[level]) - 1) + [len(frontier)]
+    
+            gen_index = 0
+            frontier_index = additions[gen_index]      
+            
+            while frontier_index < len(frontier):
+                #get the current generator
+                gen = self.chain_generators[level][gen_index]
+                
+                #try update the frontier with it (only using unseen points).
+                _, new_frontier = self._extend_level_single(gen, level, frontier[frontier_index:], True)
+                
+                #keep track of how many new points reached
+                additions[gen_index] = len(new_frontier)
+                
+                #update the frontier
+                self.add_to_stabaliser_orbit(new_frontier, level)            
+                if len(new_frontier) > 0:
+                    frontier.extend(new_frontier)
+                
+                #update the index and the pointer to the new part of frontier.
+                gen_index = (gen_index + 1) % len(self.chain_generators[level])
+                frontier_index += additions[gen_index]
+        elif force_update:
+            self.chain_generators[level].append(g)            
+
+        return updated
+        
+    def add_level(self, base_element):
+        self.chain_generators.append([])
+        graph = [(None, 1, 0) for _ in range(self.degree)]
+        index = base_element - 1
+        graph[index] = (self.identity, 1, 0)
+        self.schreier_graphs.append(graph)
+        self.base.append(base_element)
+        self.stabaliser_orbits.append(set([base_element]))
+    
+    def sift_on_level(self, g, level):
+        if level < 0:
+            #This indicates we want to sift before stabalising anything.
+            return g
+        cand = self.base[level] ** g
+        inverse = self.stabaliser_representative(cand, level)
+        if inverse is None:
+            return None
+        return g * inverse
+    
+    def siftee(self, g, level = 0):
+        for cur_level in range(level, len(self.base)):
+            cand = self.sift_on_level(g, cur_level)
+            if cand is None:
+                return g
+            elif cand.trivial():
+                return cand
+            g = cand
+        return g
+    
+    def membership(self, g, level = 0):
+        cand = self.siftee(g, level)
+        return (cand is not None) and cand.trivial()
+    
+    def __contains__(self, g):
+        return self.membership(g)
+    
+    def __lt__(self, other):
+        if isinstance(other, type(self)):
+            for self_gen, other_gen in zip(self.canonical_generators(), other.canonical_generators()):
+                if self_gen != other_gen:
+                    if self_gen < other_gen:
+                        return True
+                    else:
+                        return False
+            return False
+                        
+            
+            ##compare base?
+            #if self.base != other.base:
+                #return self.base < other.base
+            
+            ##compare orbit sizes/elements
+            #for level in range(len(self.base)):
+                #self_orb = self.stabaliser_orbit[level]
+                #other_orb = other.stabaliser_orbit[level]
+                
+                #self_min = None                
+                #for ele in self_orb:
+                    #if ele not in other_orb:
+                        #if self_min is None or ele < self_min:
+                            #self_min = ele
+                
+                #other_min = None                
+                #for ele in other_orb:
+                    #if ele not in self_orb:
+                        #if other_min is None or ele < other_min:
+                            #other_min = ele
+                
+                #if self_min is not None and other_min is not None:
+                    #return self_min < other_min
+                
+                #if self_min is not None:
+                    #return True
+                
+                #if other_min is not None:
+                    #return False
+            
+                
+            ##compare leftmost branch right most children
+        else:
+            return NotImplemented
+            
+    def canonical_generators(self):
+        for level in reversed(range(len(self.base))):
+            #calc the representative for each image (the fast way).
+            #use this to initialise cand
+            #should possibly store this sorted.
+            madan = True
+            for rep in self.transversal(level):
+                if rep is not None:
+                    if madan:
+                        madan = False
+                    else:
+                        yield self.leftmost_child(rep, level + 1)
+    
+    def leftmost_child(self, coset_rep, level):
+        # 1: if bottom level return cand
+        # 2: look at orbits from one level down when acted on by cand
+        # 3: take the smallest image and the rep for that image and make cand = rep * cand
+        # 4: go1
+        cand = coset_rep
+        for cur_level in range(level, len(self.base)):
+            best_image = None
+            best_pre = None
+            for pre in self.stabaliser_orbit(cur_level):
+                cand_image = pre ** cand
+                if best_image is None or cand_image < best_image:
+                    best_image = cand_image
+                    best_pre = pre
+            rep = self.stabaliser_representative(best_pre, cur_level)
+            cand = (rep ** -1) * cand
+        return cand
+    
+    def stabaliser_representative(self, image, level):
+        """Returns the coset representative inverse for coset associated with 
+        the image reachable in the schreier_graph."""
+        graph = self.schreier_graphs[level]
+        g = self.identity
+        cur_index = image - 1
+        cur_num = image
+        cur_g_base, cur_pow, _ = graph[cur_index]
+        if cur_g_base is None:
+            return None
+        while cur_num != self.base[level]:# and cur_g_base is not None:# and cur_pow > 0:
+            cur_g = cur_g_base ** cur_pow
+            #Follow the chain to the identity and multiply by the schreier graph element.
+            g = g * cur_g
+            image = cur_num ** cur_g
+            cur_index = image - 1
+            cur_num = image
+            cur_g_base, cur_pow, _ = graph[cur_index]
+        return g
+
+    
+    def transversal(self, level):
+        #this is the inefficient version.
+        #you should store temp paths to do efficiently (as you are stroing them anyway)
+        #invs = [self.stabaliser_representative(image, level) for image in range(self.degree, 0, -1)]
+        #ret = []
+        #for g in reversed(invs):
+            #if g is not None:
+                #ret.append(g ** -1)
+            #else:
+                #ret.append(None)
+        #return ret
+        #better way:
+        ret = [None] * self.degree
+        for index, g in enumerate(self.transversal_inverses(level)):
+            if g is not None:
+                ret[index] = g ** -1
+        return ret
+        
+    def transversal_inverses(self, level):
+        #initialise ret
+        #for each possible value in degree check if graph is None
+        #if not follow path back till get to a non none
+        ret = [None] * self.degree
+        ret[self.base[level] - 1] = self.identity
+        graph = self.schreier_graphs[level]
+        for image in range(1, self.degree + 1):
+            cur_index = image - 1
+            cur_num = image
+            g_chain = []            
+            cur_g_base, cur_pow, _ = graph[cur_index]
+            if cur_g_base is not None:    
+                while ret[cur_index] is None:
+                    cur_g = cur_g_base ** cur_pow
+                    g_chain.append((cur_index, cur_g))
+                    image = cur_num ** cur_g
+                    cur_index = image - 1
+                    cur_num = image
+                    cur_g_base, cur_pow, _ = graph[cur_index]
+                rest = ret[cur_index]
+                for chain_index, chain_g in reversed(g_chain):
+                    rest = chain_g * rest
+                    ret[chain_index] = rest   
+        return ret
+    
+    
+    def discrete(self):
+        #This is not true. Need better condition.
+        if len(self.stabaliser_orbits[-1]) == 0:
+            return False
+        return len(self.stabaliser_orbits[-1]) == 1
+    
+    def order(self):
+        tot = 1
+        for orb in self.stabaliser_orbits:
+            tot *= len(orb)
+        return tot
+    
+    def orbits(self, level = 0, key = None, in_order = False):
+        orbits = []
+        visited = [None] * self.degree
+        for ele in range(1, self.degree + 1):
+            if visited[ele - 1] is None:
+                orb = self.orbit(ele, level, key = key)
+                orbits.append(orb)
+                for orb_ele in orb:    
+                    visited[orb_ele - 1] = True
+        return orbits
+        
+    
+    def orbit(self, num, level = 0, key = None, in_order = False):
+        if level >= len(self.base):
+            return [num]
+        orb = self._orbit_computation(num, level)
+        if in_order:
+            ret = sorted(orb, key = key)
+        else:
+            ret = orb
+        return ret
+      
+    def _orbit_computation(self, num, level):
+        # there are better ways to do this. BUt is it too step a price to avoid the hash check.
+        gens = self.level_generators(level)
+        frontier = [num]
+        orb = set(frontier)
+        while len(frontier) > 0:
+            next_frontier = []
+            for gen in gens:
+                for num in frontier:
+                    cand = num**gen
+                    if cand not in orb:
+                        orb.add(cand)
+                        next_frontier.append(cand)
+            frontier = next_frontier
+        return list(orb)
+    
+    def membership_index(self, g, key = None):
+        if key is None:
+            ordering = self.base + [x for x in range(1, self.degree + 1) if x not in self.base]
+            key = ordering_to_key(ordering)
+        #divide current order by len of orbit
+        #add index used * current order to ret
+        
+        cand = g
+        #sift on level keeping track of which index out of tot
+        ret = 0
+        cur_order = self.order()
+        go_leftmost = False
+        
+        for cur_level in range(0, len(self.base)):
+            cur_orbit = self.stabaliser_orbit(cur_level)
+            cur_order //= len(cur_orbit)
+            
+            image = self.base[cur_level] ** cand
+            post_image = self.base[cur_level] ** g
+            found = False
+            des_index = 0
+            for end in cur_orbit:
+                if key(end ** g) < key(post_image):
+                    des_index += 1
+            
+            ret += des_index * cur_order            
+            
+            if image not in cur_orbit:
+                break
+            
+            if not cand.trivial():
+                cand = self.sift_on_level(cand, cur_level)
+        
+        return ret
+    
+    def element_at_index(self, index, key = None):
+        if index < 0 or index >= self.order():
+            return None
+        if key is None:
+            ordering = self.base + [x for x in range(1, self.degree + 1) if x not in self.base]
+            key = ordering_to_key(ordering)
+        
+        ret = self.identity
+        
+        cur_order = self.order()
+        for cur_level in range(0, len(self.base)):
+            cur_orbit = self.stabaliser_orbit(cur_level)
+            cur_order //= len(cur_orbit)
+            des_index = index // cur_order
+            index -= des_index * cur_order
+            
+            #this should be a quick select algorithm if hi performance required.
+            image = sorted([(ele ** ret, ele) for ele in cur_orbit], key = lambda x:key(x[0]))[des_index][1]
+            inverse = self.stabaliser_representative(image, cur_level)
+            if inverse is None:
+                raise ValueError("Unexpected orbit violation.")
+            ret = (inverse ** (-1)) * ret  
+        
+        return ret
+        
+    def element_from_image(self, image):      
+        ret = self.identity
+        for cur_level in range(0, len(self.base)):
+            
+            #this should be a quick select algorithm if hi performance required
+            des_image = self.base_at_level(cur_level)
+            if cur_level < len(image):
+                cur_orbit = self.stabaliser_orbit(cur_level)                
+                des_image = image[cur_level] ** ret
+                if des_image not in cur_orbit:
+                    return None
+            inverse = self.stabaliser_representative(des_image, cur_level)
+            ret = ret * inverse  
+        
+        return ret ** -1

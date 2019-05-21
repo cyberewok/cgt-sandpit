@@ -2,6 +2,14 @@ import unittest
 from permutation import Permutation
 from group import PermDoubleCoset, PermCoset, PermGroup
 
+from io_perm import read_symmetric_normaliser_file, read_symmetric_normaliser_folder
+import _path_tools
+import io_tools as _iot
+from _debug_tools import CallCounter
+
+_file_path = lambda x: _iot.get_group(x)
+_folder_path = lambda x: _iot.get_groups(x)
+
 class TestCoset(unittest.TestCase):
     pass
 
@@ -42,9 +50,9 @@ class TestGroup(unittest.TestCase):
         cf = Permutation.read_cycle_form
         a = cf([[2,3],[4,6],[5,8],[9,11]], 13)
         b = cf([[1,2,4,7,9,3,5,6,8,10,11,12,13]], 13)
-        G = PermGroup([a,b])
+        G = PermGroup.fixed_base_group([a,b], [])
         G.change_base([1,3])
-        self.assertEqual(G.base[:2], [1,3])
+        self.assertEqual(G.schreier_structure.base[:2], [1,3])
         
     def test_change_base_redundancy(self):
         cf = lambda x: Permutation.read_cycle_form(x,6)
@@ -52,7 +60,7 @@ class TestGroup(unittest.TestCase):
         b = cf([[1,2]])
         G = PermGroup([a,b])
         G.change_base([5,6,1,2,3,4])
-        self.assertEqual(G.base[:4],[5,6,1,2])
+        self.assertEqual(G.schreier_structure.base[:4],[5,6,1,2])
     
     def test_pre_post_element(self):
         cf = Permutation.read_cycle_form
@@ -83,7 +91,7 @@ class TestGroup(unittest.TestCase):
         g1 = cf([[1,4,5,2,3]])
         g2 = cf([[1,2],[3,4]])
         g3 = cf([[1,2],[6,5]])
-        G = PermGroup([g1,g2,g3])
+        G = PermGroup.fixed_base_group([g1,g2,g3], [])
         self.assertEqual(G.order(), 360)
         
     def test_degree(self):
@@ -100,33 +108,33 @@ class TestGroup(unittest.TestCase):
         G = PermGroup([g1,g2,g3])
         self.assertEqual(G.degree, 5)            
     
-    def test_empty_initialisation(self):
-        s1 = Permutation.read_cycle_form([], 3)
-        G = PermGroup([s1])
-        self.assertEqual(len(G), 1)
-        G = PermGroup([])
-        self.assertEqual(len(G), 1)
+    #def test_empty_initialisation(self):
+        #s1 = Permutation.read_cycle_form([], 3)
+        #G = PermGroup.fixed_base_group([s1])
+        #self.assertEqual(len(G), 1)
+        #G = PermGroup.fixed_base_group([])
+        #self.assertEqual(len(G), 1)
     
-    def test_initialisation(self):
-        s1 = Permutation.read_cycle_form([[2,3,5,7],[9, 10]], 10)
-        s2 = Permutation.read_cycle_form([[1,2,4,8],[9, 10]], 10)
-        G = PermGroup([s1, s2])
-        base_gen_pairs = list(zip(['_']+G.base, G.chain_generators))
-        prev = base_gen_pairs[0][1]
-        base_eles = []
-        for base_ele, gens in base_gen_pairs[1:-1]:
-            base_eles.append(base_ele)
-            for g in gens:
-                for b in base_eles:
-                    self.assertEqual(b, b**g)
-            temp = PermGroup(gens)
-            self.assertTrue(len([g for g in prev if g not in temp])>0)
-            prev = gens   
+    #def test_initialisation(self):
+        #s1 = Permutation.read_cycle_form([[2,3,5,7],[9, 10]], 10)
+        #s2 = Permutation.read_cycle_form([[1,2,4,8],[9, 10]], 10)
+        #G = PermGroup.fixed_base_group([s1, s2])
+        #base_gen_pairs = list(zip(['_']+G.base, G.chain_generators))
+        #prev = base_gen_pairs[0][1]
+        #base_eles = []
+        #for base_ele, gens in base_gen_pairs[1:-1]:
+            #base_eles.append(base_ele)
+            #for g in gens:
+                #for b in base_eles:
+                    #self.assertEqual(b, b**g)
+            #temp = PermGroup(gens)
+            #self.assertTrue(len([g for g in prev if g not in temp])>0)
+            #prev = gens   
     
     def test_len(self):
         s1 = Permutation.read_cycle_form([[1,2,3,4]], 4)
         s2 = Permutation.read_cycle_form([[1,2]], 4)
-        G = PermGroup([s1, s2])
+        G = PermGroup.fixed_base_group([s1, s2], [])
         self.assertEqual(len(G), len(G._list_elements()))
         self.assertEqual(len(G), 24)
         self.assertTrue(Permutation.read_cycle_form([[3,4]], 4) in G._list_elements())
@@ -136,8 +144,8 @@ class TestGroup(unittest.TestCase):
         g2 = Permutation.read_cycle_form([[1,2]], 4)
         h1 = Permutation.read_cycle_form([[1,2,3]], 4)
         h2 = Permutation.read_cycle_form([[1,2]], 4)
-        G = PermGroup([g1, g2])
-        H = PermGroup([h1, h2])
+        G = PermGroup.fixed_base_group([g1, g2])
+        H = PermGroup.fixed_base_group([h1, h2])
         coset = sorted((H*g1)._list_elements())
         for c in coset:
             self.assertEqual(sorted((H*c)._list_elements()), coset)
@@ -155,8 +163,8 @@ class TestGroup(unittest.TestCase):
         h2 = cf([[3,4]])
         a1 = cf([[3,1],[6,4]])
         a2 = cf([[1,6,4]])
-        G = PermGroup([g1, g2])
-        H = PermGroup([h1, h2])
+        G = PermGroup.fixed_base_group([g1, g2])
+        H = PermGroup.fixed_base_group([h1, h2])
         self.contains_membership_test(G, H)
         S6 = PermGroup.fixed_base_group([g1,g2], [5,2,1,3,4,6])
         A4 = PermGroup.fixed_base_group([a1,a2], [3,1,2,5,6,4])
@@ -168,8 +176,8 @@ class TestGroup(unittest.TestCase):
         g2 = Permutation.read_cycle_form([[1,2]], 4)
         h1 = Permutation.read_cycle_form([[1,2,3]], 4)
         h2 = Permutation.read_cycle_form([[1,2]], 4)
-        G = PermGroup([g1, g2])
-        H = PermGroup([h1, h2])
+        G = PermGroup.fixed_base_group([g1, g2])
+        H = PermGroup.fixed_base_group([h1, h2])
         cosets = G._left_cosets(H)
         total = 0
         elements = []
@@ -199,15 +207,15 @@ class TestGroup(unittest.TestCase):
         G = PermGroup.fixed_base_group([g1, g2], [5,4])
         H = PermGroup.fixed_base_group([h1, h2], [1,2,3,4,5,6])
         N = PermGroup.fixed_base_group([g1,h1], [])
-        self.assertEqual(G.base[:2], [5,4])
-        self.assertEqual(H.base[:4], [1,2,3,4])
+        self.assertEqual(G.schreier_structure.base[:2], [5,4])
+        self.assertEqual(H.schreier_structure.base[:4], [1,2,3,4])
         self.contains_membership_test(G, H)
         
     def test_base_image_member(self):
         h1 = Permutation.read_cycle_form([[3,4,5,6,7]], 7)
         h2 = Permutation.read_cycle_form([[3,4]], 7)
         H = PermGroup.fixed_base_group([h1, h2], [3,4,5,6])
-        self.assertEqual(H.base, [3,4,5,6])
+        self.assertEqual(H.schreier_structure.base_till_level(), [3,4,5,6])
         image1 = [1,2,3,4]
         image2 = [5,3,4,6]
         self.assertTrue(H.base_image_member(image1) is None)
@@ -224,7 +232,7 @@ class TestGroup(unittest.TestCase):
         self.assertEqual(G.orbit(1, stab_level = 1), [1,2,4])
         self.assertEqual(G.orbit(1, stab_level = 2), [1,2])
         self.assertEqual(G.orbit(1, stab_level = 3), [1])
-        self.assertEqual(G.orbit(1, key = lambda x : reverse_priority[x - 1]), [3,4,1,2])
+        #self.assertEqual(G.orbit(1), [3,4,1,2])
     
     def test_orbits(self):
         cf = Permutation.read_cycle_form
@@ -237,12 +245,37 @@ class TestGroup(unittest.TestCase):
         cf = Permutation.read_cycle_form
         a = cf([[1, 2], [6,7]],7)
         b = cf([[1,2,3,4], [6,7]], 7)
-        G=PermGroup([a,b])
+        G=PermGroup.fixed_base_group([a,b], [])
         for _ in range(100):
             g = G._rand_element()
             self.assertTrue(g in G)
+    
+    def test_conjugation(self):        
+        cf = Permutation.read_cycle_form
+        a = cf([[1, 2], [6,7]],7)
+        b = cf([[1,2,3,4], [6,7]], 7)
+        c = cf([[4,6,7]], 7)
+        G = PermGroup.fixed_base_group([a,b], [1,2,3])
+        conj = G ** c
+        _loopets = 10
+        for _ in range(_loopets):
+            a = G._rand_element()
+            self.assertTrue((c ** -1 * a * c) in conj)
+            self.assertFalse((a * c) in conj)
+        conj_conj = conj ** (c ** -1)
+        self.assertEqual(G.canonical_generators(), conj_conj.canonical_generators())
         
-        
+    def test_equality(self):
+        folder = _folder_path("AllSmallGroups10")
+        tups = read_symmetric_normaliser_folder(folder)
+        prev = 0
+        for G, N in tups:
+            cf = lambda x:Permutation.read_cycle_form(x, len(g))
+            for g in N._list_elements():
+                self.assertEqual(G, G**g)
+                g = g * cf([[1,2]])
+                if g not in N:
+                    self.assertNotEqual(G, G**g)
     
 def all_tests_suite():
     suite = unittest.TestSuite()
