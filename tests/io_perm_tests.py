@@ -5,7 +5,7 @@ from cgt.io_perm import read_group_file, read_symmetric_normaliser_file
 from cgt.io_perm import read_group_folder, read_symmetric_normaliser_folder
 from cgt.io_perm import GroupFileReader
 #import _path_tools
-import io_tools as pt
+import _io_tools as pt
 
 _fp = lambda x: pt.get_group(x)
 _fps = lambda x: pt.get_groups(x)

@@ -1,68 +1,118 @@
-from .ordering import ordering_to_key
-from .random_element_generator import ProductReplacer
-#from schreier_structure import GraphSchreierStructure as SchreierStructure
-from .schreier_structure import DirectSchreierStructure as SchreierStructure
-#from schreier_structure import SchreierStructure
+import copy
 
-def get_schreier_structure(gens, order = None, base = None, level = None, previous_structure = None):
+from .ordering import ordering_to_key
+from .random_element_generator import ProductReplacer, SGSRandomGenerator
+#from .schreier_structure import GraphSchreierStructure as SchreierStructure
+from .schreier_structure import DirectSchreierStructure as SchreierStructure
+#from .schreier_structure import SchreierStructure
+
+"""
+Attempts to use the best algorithm for the specified parameters. Base is a prefix for a base. Level is the first index
+in which the previous base differs the current base. Structure is a filled in structure (unless level is given; 
+in which case it can be empty after the specified level). CAN MODIFY THE EXISTING STRUCTURE.
+"""
+def get_schreier_structure(gens, order=None, base=None, level=None, structure=None):
+    if structure is not None:
+        #should deep copy structure
+        modify_schreier_structure_random(structure, order=order, base=base, level=level)
+    if order is not None:
+        get_schreier_structure_random(gens, base=base, order=order)
     return get_schreier_structure_naive(gens, base)
+
+def modify_schreier_structure_random(structure, order=None, base=None, level=None):
+    rssm = RandomSchreierSimsModifier(structure, order=order, base=base, level=level)
+    ret = rssm.complete()
+    return ret
+
+def get_schreier_structure_random(gens, base=None, order=None):
+    ssg = RandomSchreierSimsGenerator(gens, base=base, order=order)
+    ret = ssg.complete()
+    return ret
 
 def get_schreier_structure_naive(gens, base = None):
     ssg = SchreierSimsGenerator(gens, base=base)
     ret = ssg.complete()
     return ret
 
-class RandomisedSchreierSimsModifier():
-    def __init__(self, generators, base = None, order = None, previous_structure = None):
-        if len(generators) == 0:
-            raise ValueError("Must define atleast one generator.")
-        
-        #can not contain repeats check?
-        
-        if len(generators) > 1:
-            for gen in generators:
-                if gen.trivial():
-                    raise ValueError("Generators can not be trivial.")
-        
-        if self.previous_structure is None:
-            raise ValueError("Need prevously valid structure.")
-        
-        self.generators = generators
-        self.degree = len(generators[0])
+class RandomSchreierSimsModifier():
+    def __init__(self, structure, order=None, base=None, level=None):
+
+        #we are going to assume we can sample from the prev_structure.
+        #sample_structure = copy.deepcopy(structure)
+
+        self.order = order
+
+        self.degree = structure.degree
         self.base_candidate = base
         if self.base_candidate is None:
             self.base_candidate = []
         self.depth = 0
-        self.structure = DirectSchreierStructure(self.degree)
-        
-        
-        
-    def complete(self, level):
-        #if we have an existing structure modify it accordingly
-        #sift random elements from level down until correct size is reached.
-        pass
-        siftee = self.structure.sift_on_level(cand, level)
-        if siftee is None:
-            self.structure.base
-    
-    
+
+        if level is None:
+            old_base = structure.base_till_level()
+            new_base = self.base_candidate
+            for level in range(min(len(old_base), len(new_base))):
+                if old_base[level] != new_base[level]:
+                    break
+            self.level = level
+
+        #This takes a snapshot for us by default
+        self.rand = SGSRandomGenerator(structure, level=level)
+        self.success_limit = 100
+        self.success_count = 0
+        self.structure = SchreierStructure(self.degree)
+
+    def complete(self):
+        self.structure.pop_from_level(self.level)
+        while not self.finished():
+            cand = self.rand.element()
+            self._feed_through(cand, level=self.level)
+
+    def finished(self):
+        if self.success_count > self.success_limit:
+            if self.order is not None and self.structure.order() < self.order:
+                raise ValueError("Order given to random sims generator ({}) seems incorrect. Actual order is {}.".format(self.order, self.structure.order()))
+            return True
+
+        return self.structure.order() == self.order
+
+
+    def _feed_through(self, cand, level=0):
+
+        done = False
+        while not done:
+            if self.depth == level:
+                self.add_level(cand)
+
+            sift_cand = self.structure.sift_on_level(cand, level)
+            if sift_cand is None:
+                self.structure.extend_level(cand, level, force_update=True, improve_tree=True)
+                self.structure.add_multilevel_generator(cand, level, top_level=self.level)
+                self.success_count = 0
+                done = True
+            else:
+                level += 1
+                cand = sift_cand
+                done = cand.trivial()
+        self.success_count += 1
+
     def add_level(self, cand):
         new_base_ele = self.extend_base(cand)
         self.structure.add_level(new_base_ele)
         self.depth += 1
-        
+
     def extend_base(self, non_id):
         index = len(self.structure.base)
         if index < len(self.base_candidate):
             new_element = self.base_candidate[index]
             return new_element
         elif not non_id.trivial():
-            first_non_fixed = next(num for num in range(1, len(non_id) + 1) if num**non_id != num)
+            first_non_fixed = next(num for num in range(1, len(non_id) + 1) if num ** non_id != num)
             return first_non_fixed
         return list(set(list(range(1, self.degree))) - set(self.structure.base))[0]
 
-class RandomisedSchreierSimsGenerator():
-    def __init__(self, generators, base=None, order=None):
+class RandomSchreierSimsGenerator():
+    def __init__(self, generators, base=None, order=None, structure=None):
         if len(generators) == 0:
             raise ValueError("Must define atleast one generator.")
 
@@ -75,7 +125,7 @@ class RandomisedSchreierSimsGenerator():
 
         self.order = order
         if order is None:
-            raise ValueError("order keyword must be given to construct a structure.")
+            raise ValueError("order keyword must be given to make a random generator.")
 
         self.rand = ProductReplacer(generators)
         self.degree = len(generators[0])
@@ -84,26 +134,43 @@ class RandomisedSchreierSimsGenerator():
             self.base_candidate = []
         self.depth = 0
 
+        self.success_limit = 100
+        self.success_count = 0
+        self.structure = SchreierStructure(self.degree) if structure is None else structure
+
     def complete(self):
 
+        while not self.finished():
+            cand = self.rand.element()
+            self._feed_through(cand)
 
-        cand = self.rand.element()
+    def finished(self):
+        if self.success_count > self.success_limit:
+            if self.order is not None and self.structure.order() < self.order:
+                raise ValueError("Order given to random sims generator ({}) seems incorrect. Actual order is {}.".format(self.order, self.structure.order()))
+            return True
 
-        #get a random element from the group.
-        #going to need a random element generator product replacement.
-
-        #Is it in the current structure?
-        #If not add the siftee to each level.
-        #have we reached end condition? (Going to need order or a probablity constraint)
+        return self.structure.order() == self.order
 
 
-    def complete(self, level):
-        # if we have an existing structure modify it accordingly
-        # sift random elements from level down until correct size is reached.
-        pass
-        siftee = self.structure.sift_on_level(cand, level)
-        if siftee is None:
-            self.structure.base
+    def _feed_through(self, cand, level=0):
+
+        done = False
+        while not done:
+            if self.depth == level:
+                self.add_level(cand)
+
+            sift_cand = self.structure.sift_on_level(cand, level)
+            if sift_cand is None:
+                self.structure.extend_level(cand, level, force_update=True, improve_tree=True)
+                self.structure.add_multilevel_generator(cand, level)
+                self.success_count = 0
+                done = True
+            else:
+                level += 1
+                cand = sift_cand
+                done = cand.trivial()
+        self.success_count += 1
 
     def add_level(self, cand):
         new_base_ele = self.extend_base(cand)
@@ -302,7 +369,8 @@ class BaseChanger():
         
         self.cur_base = new_base
         if need_change:
-            self.structure = get_schreier_structure(self.group.generators, base = new_base, order = self.structure.order())
+            self.structure = get_schreier_structure(self.group.generators, base=new_base, order=self.structure.order(),
+                                                    structure=self.structure)
         return self.structure
     
     def orbit(self, ele):

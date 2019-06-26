@@ -1,6 +1,5 @@
 from .permutation import Permutation
 from .ordering import ordering_to_key
-from math import log2
 import random
 
 class SchreierStructure():
@@ -12,25 +11,50 @@ class SchreierStructure():
         #base is needed as a feild.
         self.base = []
         self.stabaliser_orbits = []
+
+    def clone(self):
+        ss = self.__class__(self.degree)
+        ss.chain_generators = [[gen for gen in chain] for chain in self.chain_generators]
+        ss.schreier_graphs = [[rep for rep in graph] for graph in self.schreier_graphs]
+        ss.base = [ele for ele in self.base]
+        ss.stabaliser_orbits = [[ele for ele in orb] for orb in self.stabaliser_orbits]
+        return ss
+
+    def pop_from_level(self, level):
+        while len(self.chain_generators) > level:
+            self.chain_generators.pop()
+            self.schreier_graphs.pop()
+            self.base.pop()
+            self.stabaliser_orbits.pop()
     
     def base_at_level(self, level):
         return self.base[level]
     
-    def base_till_level(self, level = None):
+    def base_till_level(self, level=None):
         if level is None:
             level = len(self.base) 
         return self.base[:level]
         
     def level_generators(self, level):
         return self.chain_generators[level]
+
+    def add_level_generator(self, gen, level=0):
+        self.chain_generators[level].append(gen)
+
+    """Adds gen to the chain generators of each level below 'level'."""
+    def add_multilevel_generator(self, gen, level=None, top_level=0):
+        if level is None:
+            level = len(self.chain_generators)
+        for cur_level in range(top_level, level):
+            self.chain_generators[cur_level].append(gen)
     
-    def stabaliser_orbit(self, level = 0):
+    def stabaliser_orbit(self, level=0):
         return self.stabaliser_orbits[level]
     
-    def add_to_stabaliser_orbit(self, elements, level = 0):
+    def add_to_stabaliser_orbit(self, elements, level=0):
         self.stabaliser_orbits[level].update(elements)
      
-    def extend_level(self, g, level, force_update = False, improve_tree = True):
+    def extend_level(self, g, level, force_update=False, improve_tree=True):
         raise ValueError("Needs to be implmented by a subclass.")
         
     def add_level(self, base_element):
@@ -46,7 +70,7 @@ class SchreierStructure():
             return None
         return g * inverse
     
-    def siftee(self, g, level = 0):
+    def siftee(self, g, level=0):
         for cur_level in range(level, len(self.base)):
             cand = self.sift_on_level(g, cur_level)
             if cand is None:
@@ -56,7 +80,7 @@ class SchreierStructure():
             g = cand
         return g
     
-    def membership(self, g, level = 0):
+    def membership(self, g, level=0):
         cand = self.siftee(g, level)
         return (cand is not None) and cand.trivial()
     
@@ -436,7 +460,7 @@ class GraphSchreierStructure(SchreierStructure):
     
 class DirectSchreierStructure(SchreierStructure):
      
-    def extend_level(self, g, level, force_update = False, improve_tree = True):
+    def extend_level(self, g, level, force_update=False, improve_tree=True):
         graph = self.schreier_graphs[level]
         frontier = self.stabaliser_orbit(level)
         new_frontier = []

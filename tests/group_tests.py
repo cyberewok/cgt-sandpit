@@ -3,7 +3,7 @@ from cgt.permutation import Permutation
 from cgt.group import PermDoubleCoset, PermCoset, PermGroup
 
 from cgt.io_perm import read_symmetric_normaliser_file, read_symmetric_normaliser_folder
-import io_tools as _iot
+import _io_tools as _iot
 from cgt._debug_tools import CallCounter
 
 _file_path = lambda x: _iot.get_group(x)
@@ -51,23 +51,23 @@ class TestGroup(unittest.TestCase):
         b = cf([[1,2,4,7,9,3,5,6,8,10,11,12,13]], 13)
         G = PermGroup.fixed_base_group([a,b], [])
         G.change_base([1,3])
-        self.assertEqual(G.schreier_structure.base[:2], [1,3])
+        self.assertEqual(G.schreier_structure.base[:2], [1, 3])
         
     def test_change_base_redundancy(self):
-        cf = lambda x: Permutation.read_cycle_form(x,6)
-        a = cf([[1,2,3,4],[5,6]])
-        b = cf([[1,2]])
-        G = PermGroup([a,b])
-        G.change_base([5,6,1,2,3,4])
-        self.assertEqual(G.schreier_structure.base[:4],[5,6,1,2])
+        cf = lambda x: Permutation.read_cycle_form(x, 6)
+        a = cf([[1, 2, 3, 4], [5, 6]])
+        b = cf([[1, 2]])
+        G = PermGroup([a, b])
+        G.change_base([5, 6, 1, 2, 3, 4])
+        self.assertEqual(G.schreier_structure.base[:4], [5, 6, 1, 2])
     
     def test_pre_post_element(self):
         cf = Permutation.read_cycle_form
-        a = cf([[2,3],[4,6],[5,8],[9,11]], 13)
-        b = cf([[1,2,4,7,9,3,5,6,8,10,11,12,13]], 13)
-        G = PermGroup.fixed_base_group([a,b], [1,3])
-        pre = [1,3]
-        post = [9,3]
+        a = cf([[2, 3], [4, 6], [5, 8], [9, 11]], 13)
+        b = cf([[1, 2, 4, 7, 9, 3, 5, 6, 8, 10, 11, 12, 13]], 13)
+        G = PermGroup.fixed_base_group([a, b], [1, 3])
+        pre = [1, 3]
+        post = [9, 3]
         self.pre_post_works(pre, post, G)
     
     def test_pre_post_element_A4(self):
@@ -269,7 +269,7 @@ class TestGroup(unittest.TestCase):
         tups = read_symmetric_normaliser_folder(folder)
         prev = 0
         for G, N in tups:
-            cf = lambda x:Permutation.read_cycle_form(x, len(g))
+            cf = lambda x: Permutation.read_cycle_form(x, len(g))
             for g in N._list_elements():
                 self.assertEqual(G, G**g)
                 g = g * cf([[1,2]])

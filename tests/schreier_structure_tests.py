@@ -146,13 +146,13 @@ class TestDirectSchreierStructure(unittest.TestCase):
     def test_sift(self):
         degree = 6
         cf = lambda x:Permutation.read_cycle_form(x, degree)
-        a = cf([[1,2,3,4,5,6]])
-        b = cf([[1,2]])
-        S6 = Group([a,b])._list_elements()
-        a = cf([[1,3,4,5,6]])
-        b = cf([[1,4,6]])
-        A5 = Group([a,b])._list_elements()
-        rg = get_schreier_structure([a,b], order = 360)
+        a = cf([[1, 2, 3, 4, 5, 6]])
+        b = cf([[1, 2]])
+        S6 = Group([a, b])._list_elements()
+        a = cf([[1, 3, 4, 5, 6]])
+        b = cf([[1, 4, 6]])
+        A5 = Group([a, b])._list_elements()
+        rg = get_schreier_structure([a, b], order=60)
         self.sift_test(S6, A5, rg)
     
     #def test_base_image_member(self):
@@ -422,7 +422,7 @@ class TestGraphSchreierStructure(unittest.TestCase):
         #rg = RandomSchreierGenerator([a, b], group_order=360)
         #rg.complete_till_level(degree)
         #self.sift_test(S6, A5, rg.structure)
-        ss = get_schreier_structure([a,b], order=360)
+        ss = get_schreier_structure([a, b], order=60)
         self.sift_test(S6, A5, ss)
 
 
