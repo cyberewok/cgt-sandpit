@@ -1,21 +1,21 @@
 import unittest
-from permutation import Permutation
-from partition import PartitionStack
-from group import PermGroup as Group
-from schreier_sims import BaseChanger
-from canonical_conjugate_search import NaiveCanonicalConjugateSearch
-from refinement_manager import OrbitStabaliser
-from canonical_conjugate_search import DiscriminatorManager, UpdatesManager
-from canonical_conjugate_search import canonical_conjugate
-from canonical_conjugate_search import canonical_map
-from canonical_conjugate_search import _canonical_all
-import canonical_conjugate_search_debug as _debug
+from cgt.permutation import Permutation
+from cgt.partition import PartitionStack
+from cgt.group import PermGroup as Group
+from cgt.schreier_sims import BaseChanger
+from cgt.canonical_conjugate_search import NaiveCanonicalConjugateSearch
+from cgt.refinement_manager import OrbitStabaliser
+from cgt.canonical_conjugate_search import DiscriminatorManager, UpdatesManager
+from cgt.canonical_conjugate_search import canonical_conjugate
+from cgt.canonical_conjugate_search import canonical_map
+from cgt.canonical_conjugate_search import _canonical_all
+#import cgt.canonical_conjugate_search_debug as _debug
 _ccsd = _debug.get_class_manager(NaiveCanonicalConjugateSearch)
 
-from io_perm import read_symmetric_normaliser_file, read_symmetric_normaliser_folder
+from cgt.io_perm import read_symmetric_normaliser_file, read_symmetric_normaliser_folder
 import _path_tools
-import _io_tools as _iot
-from _debug_tools import CallCounter
+import cgt._io_tools as _iot
+from cgt._debug_tools import CallCounter
 
 _file_path = lambda x: _iot.get_group(x)
 _folder_path = lambda x: _iot.get_groups(x)

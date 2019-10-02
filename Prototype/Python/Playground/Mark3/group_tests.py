@@ -4,7 +4,7 @@ from group import PermDoubleCoset, PermCoset, PermGroup
 
 from io_perm import read_symmetric_normaliser_file, read_symmetric_normaliser_folder
 import _path_tools
-import io_tools as _iot
+import _io_tools as _iot
 from _debug_tools import CallCounter
 
 _file_path = lambda x: _iot.get_group(x)

@@ -219,4 +219,3 @@ class InstanceManager():
                 manager.enable()
             else:
                 manager.disable()
-    
